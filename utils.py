@@ -660,7 +660,8 @@ def call_gemini_structured_diagnosis(img_bytes, location_name=None, lat=None, lo
                             return {"status": "SUCCESS", "data": cleaned_text}
                             
                     except APIError as e:
-                        last_error_log = str(e)
+                        # APIError의 상세 메시지나 전체 객체 문자열을 확실하게 담음
+                        last_error_log = f"APIError (Code: {getattr(e, 'code', 'unknown')}) - {e.message if hasattr(e, 'message') else str(e)}"
                         if "429" in last_error_log or "QUOTA" in last_error_log or "EXHAUSTED" in last_error_log:
                             st.toast(f"API Key #{key_idx + 1} 할당량 소진. 다음 Key로 자동 스위칭합니다.", icon="⚠️")
                             break
@@ -671,7 +672,8 @@ def call_gemini_structured_diagnosis(img_bytes, location_name=None, lat=None, lo
                         break
 
             except Exception as e:
-                last_error_log = str(e)
+                # 일반 예외 발생 시 클래스 이름과 에러 메시지를 모두 기록
+                last_error_log = f"{type(e).__name__}: {str(e)}"
                 continue
 
         return {
