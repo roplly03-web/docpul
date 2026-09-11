@@ -144,8 +144,17 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (안드로이드/iOS 통합)
+# 안정적인 EXIF GPS 추출 (통합본)
 # ==========================================
+def convert_to_degrees(value):
+    try:
+        d = float(value[0])
+        m = float(value[1])
+        s = float(value[2])
+        return d + (m / 60.0) + (s / 3600.0)
+    except Exception:
+        return None
+
 def extract_gps_from_image(image):
     try:
         exif = image._getexif()
@@ -166,17 +175,6 @@ def extract_gps_from_image(image):
         if not gps_info:
             return None, None
 
-        def _to_decimal(values):
-            if not values:
-                return None
-            try:
-                d = float(values[0])
-                m = float(values[1])
-                s = float(values[2])
-                return d + (m / 60.0) + (s / 3600.0)
-            except Exception:
-                return None
-
         lat_raw = gps_info.get('GPSLatitude') or gps_info.get(2)
         lat_ref = gps_info.get('GPSLatitudeRef') or gps_info.get(1)
         lon_raw = gps_info.get('GPSLongitude') or gps_info.get(4)
@@ -185,8 +183,8 @@ def extract_gps_from_image(image):
         if not lat_raw or not lon_raw:
             return None, None
 
-        lat = _to_decimal(lat_raw)
-        lon = _to_decimal(lon_raw)
+        lat = convert_to_degrees(lat_raw)
+        lon = convert_to_degrees(lon_raw)
 
         if lat is None or lon is None:
             return None, None
@@ -194,7 +192,7 @@ def extract_gps_from_image(image):
         if lat_ref == 'S': lat = -lat
         if lon_ref == 'W': lon = -lon
 
-        return lat, lon
+        return round(lat, 6), round(lon, 6)
     except Exception:
         return None, None
         
