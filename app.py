@@ -75,8 +75,16 @@ st.markdown("""
 
 # 🌟 로고 이미지 링크 (어떤 탭에 있든 최상단에서 DOM으로 동작)
 logo_url = "https://oqppdobtnpoyqpruyjba.supabase.co/storage/v1/object/public/tree-images/docpul_logo.png"
+
+# HTML 태그를 f-string 멀티라인 문자열(""" """) 안에 깔끔하게 감싸줍니다.
 st.markdown(
-    f'<a href="/?reset=true" target="_self"><img src="{logo_url}" width="250" style="cursor:pointer; display:block; margin-bottom:15px;"></a>',
+    f"""
+    <div style="margin-top: 16px;">
+        <a href="/?reset=true" target="_self">
+            <img src="{logo_url}" width="250" style="cursor:pointer; display:block; margin-bottom:15px;">
+        </a>
+    </div>
+    """,
     unsafe_allow_html=True
 )
 
