@@ -21,7 +21,7 @@ from utils import (
     extract_gps_from_image, get_address_from_coords, format_location_display,
     search_google_places, call_gemini_structured_diagnosis,
     parse_primary_scientific_name, save_to_supabase, sanitize_and_format_markdown,
-    supabase
+    get_location_by_ip, supabase  
 )
 
 # DB 조회
@@ -449,13 +449,17 @@ def show_diagnose_page():
                                 st.rerun()
 
                         elif st.session_state["geo_step"] == "FETCHING_GPS":
-                            st.info("📍 위치 권한 팝업이 나오면 **허용**을 눌러주세요.")
+                            st.info("📍 위치 확인 중입니다. 잠시만 기다려주세요...")
 
-                            # 며칠 전 잘 작동하던 원래의 브라우저 GPS 호출 방식
-                            device_loc = get_geolocation()
+                            # 1. 브라우저 GPS 시도 (모바일 환경에서 응답이 없을 경우를 대비)
+                            device_loc = None
+                            try:
+                                device_loc = get_geolocation()
+                            except Exception:
+                                device_loc = None
 
-                            # 1. GPS 정보를 성공적으로 받아온 경우
-                            if device_loc and "coords" in device_loc:
+                            # 2. GPS 정보를 성공적으로 받아온 경우
+                            if device_loc and isinstance(device_loc, dict) and "coords" in device_loc:
                                 raw_lat = device_loc["coords"].get("latitude")
                                 raw_lon = device_loc["coords"].get("longitude")
 
@@ -463,32 +467,26 @@ def show_diagnose_page():
                                     st.session_state["cached_lat"] = float(raw_lat)
                                     st.session_state["cached_lon"] = float(raw_lon)
                                     addr = get_address_from_coords(float(raw_lat), float(raw_lon))
-                                    st.session_state["cached_loc_name"] = addr if addr else "주소 변환 실패"
+                                    st.session_state["cached_loc_name"] = addr if addr else "위치 정보"
                                     st.session_state["override_location"] = False
                                     st.session_state["geo_step"] = "DONE"
                                     st.session_state.pop("need_place_selection_error", None)
                                     st.rerun()
 
-                            # 2. 브라우저가 거부했거나 명시적으로 차단한 경우
-                            if device_loc is not None and "coords" not in device_loc:
-                                st.session_state["geo_step"] = "STEP3_SEARCH"
+                            # 3. 🚨 브라우저 GPS 응답이 없거나 차단된 경우 -> 즉시 멈춤 없이 IP 기반 또는 수동 검색으로 자동 전환 (뺑글뺑글 방지)
+                            # IP 기반 자동 위치 추정 시도 (utils_2.py에 정의된 get_location_by_ip 활용)
+                            ip_fallback = get_location_by_ip()
+                            if ip_fallback and ip_fallback.get("latitude") and ip_fallback.get("longitude"):
+                                st.session_state["cached_lat"] = ip_fallback["latitude"]
+                                st.session_state["cached_lon"] = ip_fallback["longitude"]
+                                region_city = f"{ip_fallback.get('region', '')} {ip_fallback.get('city', '')}".strip()
+                                st.session_state["cached_loc_name"] = region_city or "네트워크 기반 위치"
+                                st.session_state["override_location"] = False
+                                st.session_state["geo_step"] = "DONE"
+                                st.session_state.pop("need_place_selection_error", None)
                                 st.rerun()
-
-                            # 3. 🚨 모바일에서 응답이 없어 멈추는(None) 경우를 대비한 탈출 버튼 (갇힘 방지)
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            st.warning("⚠️ 위치 권한 응답이 지연되고 있습니다. 계속 멈춰 있다면 아래 버튼을 눌러주세요.")
-                            
-                            col_a, col_b = st.columns(2)
-                            with col_a:
-                                if st.button("🔍 직접 주소 검색하기", type="primary", key="btn_force_search_safe"):
-                                    st.session_state["geo_step"] = "STEP3_SEARCH"
-                                    st.rerun()
-                            with col_b:
-                                if st.button("취소하기", type="secondary", key="btn_cancel_gps_safe"):
-                                    st.session_state["geo_step"] = "STEP2"
-                                    st.rerun()
-
-                                # 정말로 IP 조회가 실패했을 때만 수동 검색 단계로 이동
+                            else:
+                                # IP마저 실패할 경우에만 최소한의 수동 검색 단계로 안전 이동
                                 st.session_state["geo_step"] = "STEP3_SEARCH"
                                 st.rerun()
 
