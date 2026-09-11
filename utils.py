@@ -11,7 +11,6 @@ from google.genai import types
 from google.genai.errors import APIError
 from supabase import create_client, Client
 
-
 def apply_global_styles():
     """잔상 없이 아주 빠르고 깔끔하게 사라지도록 설정"""
     st.markdown("""
@@ -61,6 +60,36 @@ def get_gemini_api_keys():
     return list(dict.fromkeys([k for k in keys if k]))
 
 GEMINI_API_KEYS = get_gemini_api_keys()
+
+
+# ==========================================
+# IP 기반 위치 추정 (GPS 실패/타임아웃 시 백업용)
+# ==========================================
+def get_location_by_ip():
+    """
+    공인 IP를 기반으로 대략적인 위치 정보(위도, 경도, 도시, 지역)를 조회합니다.
+    """
+    try:
+        # 무료로 공인 IP 위치를 제공하는 API 활용 (타임아웃 3초 설정)
+        response = requests.get("https://ipapi.co/json/", timeout=3)
+        if response.status_code == 200:
+            data = response.json()
+            lat = data.get("latitude")
+            lon = data.get("longitude")
+            
+            if lat and lon:
+                return {
+                    "latitude": float(lat),
+                    "longitude": float(lon),
+                    "city": data.get("city", ""),
+                    "region": data.get("region", ""),
+                    "country": data.get("country_name", ""),
+                    "source": "ip"
+                }
+    except Exception as e:
+        print(f"IP Geolocation Error: {e}")
+    
+    return None
 
 # ==========================================
 # Google Places Text Search (장소/키워드 검색)
