@@ -32,11 +32,20 @@ def apply_global_styles():
 # ==========================================
 @st.cache_resource
 def init_supabase() -> Client:
-    url = st.secrets.get("SUPABASE_URL")
-    key = st.secrets.get("SUPABASE_KEY")
+    # 안전하게 st.secrets에서 값 가져오기 (없으면 빈 문자열)
+    url = st.secrets.get("SUPABASE_URL", "").strip()
+    key = st.secrets.get("SUPABASE_KEY", "").strip()
+    
     if not url or not key:
+        # 배포 환경에서 키가 누락된 경우 경고를 띄워 원인 파악 도움
+        st.warning("⚠️ Streamlit Secrets에 SUPABASE_URL 또는 SUPABASE_KEY가 설정되지 않았거나 비어 있습니다.")
         return None
-    return create_client(url, key)
+        
+    try:
+        return create_client(url, key)
+    except Exception as e:
+        st.error(f"❌ Supabase 클라이언트 생성 실패: {e}")
+        return None
 
 supabase = init_supabase()
 
