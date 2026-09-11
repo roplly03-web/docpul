@@ -111,19 +111,14 @@ def show_diagnose_page():
             
             st.markdown("""
                 <style>
-                    /* 1. 버튼 전체 중앙 정렬 및 너비 제어 */
                     div.stButton {
                         display: flex !important;
                         justify-content: center !important;
-                        #max-width: 320px !important;
                         margin: 0 auto !important;
                     }
-                    
                     div.stButton > button {
                         width: 100% !important;
                     }
-
-                    /* 2. Primary 버튼 스타일 */
                     div.stButton > button[kind="primary"] {
                         font-size: 1.0rem !important;
                         font-weight: 500 !important;
@@ -155,7 +150,6 @@ def show_diagnose_page():
 
             st.divider()
 
-            # 본문 1
             st.markdown("""
                 <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>식물 이름</b>만 알려주는게 아니에요
                 </h4>
@@ -174,7 +168,6 @@ def show_diagnose_page():
             
             st.markdown("---")
 
-            # 본문 2: 최근 진단 사진 3장
             st.markdown("""
                 <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">닥풀은 <b>이렇게</b> 살펴봐요
                 </h4>
@@ -226,7 +219,6 @@ def show_diagnose_page():
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("---")
             
-            # 본문 3
             st.markdown("""
                 <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">한 번의 진단에서 <b>끝나지 않아요</b>
                 </h4>
@@ -263,7 +255,7 @@ def show_diagnose_page():
                     <div style="
                         border: 1px solid rgba(49, 51, 63, 0.2);
                         border-radius: 80px;
-                        padding: 8;
+                        padding: 8px;
                         min-height: 100px; 
                         display: flex; 
                         flex-direction: column; 
@@ -282,7 +274,6 @@ def show_diagnose_page():
 
             st.markdown("---")
 
-            # 본문 4
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("""
                 <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">닥풀이 만들고 있는 <b>식물 지도</b>
@@ -302,7 +293,6 @@ def show_diagnose_page():
 
             st.markdown("---")
 
-            # 하단 진단 시작 버튼
             st.markdown("""
                 <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>내 식물이 궁금할 때</b>, 사진을 올려보세요
                 </h4>
@@ -317,7 +307,7 @@ def show_diagnose_page():
                 st.rerun()
 
         # ---------------------------------------------------------
-        # VIEW 2: 식물 진단 UI
+        # VIEW 2: 식물 진단 UI (Zero-Click 자동 위치 수집 적용)
         # ---------------------------------------------------------
         else:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -364,199 +354,139 @@ def show_diagnose_page():
                 st.error(f"❌ 이미지를 읽는 중 오류가 발생했습니다: {e}")
                 return
 
+            # ---------------------------------------------------------
+            # 🌟 Zero-Click 자동 위치 수집 로직 (강화된 3단계 방어선)
+            # ---------------------------------------------------------
             lat, lon = None, None
             selected_loc_name = ""
 
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
-            photo_lat, photo_lon = None, None
-            try:
-                photo_lat, photo_lon = extract_gps_from_image(image)
-            except Exception:
-                pass
-
             has_valid_cache = (
                 st.session_state.get("cached_lat") is not None 
                 and str(st.session_state.get("cached_lat")).lower() != "nan"
             )
 
-            if has_valid_cache:
+            # 캐시가 없고, 사용자가 명시적으로 '바꾸기'를 누른 상태가 아니라면 자동 감지 수행
+            if not has_valid_cache and not st.session_state.get("override_location"):
+                photo_lat, photo_lon = None, None
+                
+                # [1단계] 사진 자체의 EXIF GPS 추출 시도
+                try:
+                    photo_lat, photo_lon = extract_gps_from_image(image)
+                except Exception:
+                    pass
+
+                if photo_lat and photo_lon:
+                    lat, lon = photo_lat, photo_lon
+                    try:
+                        addr = get_address_from_coords(lat, lon)
+                        selected_loc_name = addr if addr else f"{lat:.4f}, {lon:.4f}"
+                    except Exception:
+                        selected_loc_name = f"{lat:.4f}, {lon:.4f}"
+                else:
+                    # [2단계] IP 기반 위치 추적 시도
+                    try:
+                        ip_fallback = get_location_by_ip()
+                        if ip_fallback and ip_fallback.get("latitude") and ip_fallback.get("longitude"):
+                            lat = ip_fallback["latitude"]
+                            lon = ip_fallback["longitude"]
+                            region_city = f"{ip_fallback.get('region', '')} {ip_fallback.get('city', '')}".strip()
+                            selected_loc_name = region_city or "네트워크 기반 위치"
+                    except Exception:
+                        pass
+
+                # [3단계] 1, 2단계 모두 실패하더라도 절대 수동창으로 튕기지 않도록 기본 위치(서울) 자동 할당
+                if not lat or not lon:
+                    lat, lon = 37.5665, 126.9780
+                    selected_loc_name = "대한민국 서울 (기본 위치)"
+
+                # 감지된 위치를 즉시 캐시에 저장하여 수동 입력창이 고개도 못 들게 차단
+                st.session_state["cached_lat"] = lat
+                st.session_state["cached_lon"] = lon
+                st.session_state["cached_loc_name"] = selected_loc_name
+            else:
+                # 이미 캐시되었거나 사용자가 수동 지정을 선택한 경우
                 lat = st.session_state.get("cached_lat")
                 lon = st.session_state.get("cached_lon")
-                selected_loc_name = st.session_state.get("cached_loc_name", "") # ✅ .get()으로 안전하게 조회
-            elif photo_lat and photo_lon:
-                lat, lon = photo_lat, photo_lon
-                addr = get_address_from_coords(lat, lon)
-                selected_loc_name = addr if addr else "주소 변환 실패"
+                selected_loc_name = st.session_state.get("cached_loc_name", "")
 
             # ---------------------------------------------------------
-            # 위치 수집 로직 (진단 중이 아니고, 리포트가 없을 때만 표시)
+            # 위치 정보 표시 및 변경 UI (진단 중이 아니고 리포트가 없을 때)
             # ---------------------------------------------------------
             if not has_report and not is_diagnosing:
                 st.markdown("---")
                 st.markdown("""
-                    <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;"><b>식물이 있는 곳</b>도 알려주세요
+                    <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;"><b>식물이 있는 곳</b>도 함께 살펴봐요
                     </h4>
-                    <p style="font-size: 0.95rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400;">식물이 있는 곳도 알려주세요.<br> <b>지역과 계절에 따른 병해충과 환경 특성</b>까지 함께 살펴볼게요.
+                    <p style="font-size: 0.95rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400;">지역과 계절에 따른 환경 특성을 반영하여 진단합니다.
                     </p>
                 """, unsafe_allow_html=True)
 
-                if "geo_step" not in st.session_state:
-                    st.session_state["geo_step"] = "INIT"
-
-                if photo_lat and photo_lon and not st.session_state.get("override_location"):
-                    lat, lon = photo_lat, photo_lon
-                    if not selected_loc_name or selected_loc_name == "주소 변환 실패":
-                        addr = get_address_from_coords(lat, lon)
-                        selected_loc_name = addr if addr else "주소 변환 실패"
+                # 기본적으로 자동 감지된 위치를 깔끔하게 출력 (수동 검색창을 기본으로 열지 않음)
+                if not st.session_state.get("override_location") and lat and lon:
+                    st.success(f"📍 **확인된 위치:** {format_location_display(selected_loc_name, lat, lon)}")
                     
-                    st.session_state["cached_lat"] = lat
-                    st.session_state["cached_lon"] = lon
-                    st.session_state["cached_loc_name"] = selected_loc_name
-
-                    st.success(f"📍 **식물이 있는 곳:** {format_location_display(selected_loc_name, lat, lon)}")
-                    st.session_state.pop("need_place_selection_error", None)
-
-                    if st.button("식물이 있는 곳 바꾸기", type="secondary", key="btn_change_photo_loc"):
-                        st.session_state.pop("cached_lat", None)
-                        st.session_state.pop("cached_lon", None)
-                        st.session_state.pop("cached_loc_name", None)
+                    # 위치를 바꾸고 싶은 사람만 이 버튼을 누르게 유도
+                    if st.button("다른 장소로 직접 지정하기", type="secondary", key="btn_change_auto_loc"):
                         st.session_state["override_location"] = True
-                        st.session_state["geo_step"] = "STEP2"
                         st.rerun()
-
                 else:
-                    has_cached_loc = (
-                        "cached_lat" in st.session_state 
-                        and st.session_state["cached_lat"] is not None
+                    # 사용자가 명확하게 '다른 장소로 직접 지정하기'를 눌렀을 때만 검색창 노출
+                    st.info("🔍 변경할 장소의 이름이나 주소를 입력해주세요.")
+                    keyword_input = st.text_input(
+                        "검색어 입력",
+                        placeholder="예: 서울숲, 푸른수목원, 우리집 주소",
+                        label_visibility="collapsed",
+                        key="manual_keyword_input"
                     )
+                    # (이하 검색 결과 버튼 처리 로직 유지)
 
-                    if has_cached_loc and not st.session_state.get("override_location"):
-                        st.success(f"📍 **식물이 있는 곳:** {format_location_display(selected_loc_name, lat, lon)}")
-                        if st.button("식물이 있는 곳 바꾸기", type="secondary", key="btn_change_manual_loc"):
-                            st.session_state.pop("cached_lat", None)
-                            st.session_state.pop("cached_lon", None)
-                            st.session_state.pop("cached_loc_name", None)
-                            st.session_state["override_location"] = True
-                            st.session_state["geo_step"] = "STEP2"
-                            st.rerun()
+                    if keyword_input.strip():
+                        try:
+                            results = search_google_places(keyword_input.strip())
+                            if results:
+                                st.markdown("검색 결과에서 **식물이 있는 장소를 선택**해주세요.")
+                                
+                                st.markdown("""
+                                    <style>
+                                        div[data-testid="stButton"] {
+                                            width: 100% !important;
+                                            max-width: 100% !important;
+                                            display: block !important;
+                                        }
+                                        div[data-testid="stButton"] > button {
+                                            width: 100% !important;
+                                            max-width: 100% !important;
+                                            text-align: left !important;
+                                            justify-content: flex-start !important;
+                                            padding-left: 16px !important;
+                                        }
+                                        div[data-testid="stButton"] > button p {
+                                            text-align: left !important;
+                                            width: 100% !important;
+                                        }
+                                    </style>
+                                """, unsafe_allow_html=True)
 
-                    else:
-                        if st.session_state["geo_step"] in ["INIT", "STEP2"]:
-                            if st.button("현재 위치 불러오기", type="secondary", key="btn_start_gps"):
-                                st.session_state["geo_step"] = "FETCHING_GPS"
-                                st.rerun()
-
-                        elif st.session_state["geo_step"] == "FETCHING_GPS":
-                            st.info("📍 위치 확인 중입니다. 잠시만 기다려주세요...")
-
-                            # 1. 브라우저 GPS 시도 (모바일 환경에서 응답이 없을 경우를 대비)
-                            device_loc = None
-                            try:
-                                device_loc = get_geolocation()
-                            except Exception:
-                                device_loc = None
-
-                            # 2. GPS 정보를 성공적으로 받아온 경우
-                            if device_loc and isinstance(device_loc, dict) and "coords" in device_loc:
-                                raw_lat = device_loc["coords"].get("latitude")
-                                raw_lon = device_loc["coords"].get("longitude")
-
-                                if raw_lat and raw_lon and str(raw_lat).lower() != "nan":
-                                    st.session_state["cached_lat"] = float(raw_lat)
-                                    st.session_state["cached_lon"] = float(raw_lon)
-                                    addr = get_address_from_coords(float(raw_lat), float(raw_lon))
-                                    st.session_state["cached_loc_name"] = addr if addr else "위치 정보"
-                                    st.session_state["override_location"] = False
-                                    st.session_state["geo_step"] = "DONE"
-                                    st.session_state.pop("need_place_selection_error", None)
-                                    st.rerun()
-
-                            # 3. 🚨 브라우저 GPS 응답이 없거나 차단된 경우 -> 즉시 멈춤 없이 IP 기반 또는 수동 검색으로 자동 전환 (뺑글뺑글 방지)
-                            # IP 기반 자동 위치 추정 시도 (utils_2.py에 정의된 get_location_by_ip 활용)
-                            ip_fallback = get_location_by_ip()
-                            if ip_fallback and ip_fallback.get("latitude") and ip_fallback.get("longitude"):
-                                st.session_state["cached_lat"] = ip_fallback["latitude"]
-                                st.session_state["cached_lon"] = ip_fallback["longitude"]
-                                region_city = f"{ip_fallback.get('region', '')} {ip_fallback.get('city', '')}".strip()
-                                st.session_state["cached_loc_name"] = region_city or "네트워크 기반 위치"
-                                st.session_state["override_location"] = False
-                                st.session_state["geo_step"] = "DONE"
-                                st.session_state.pop("need_place_selection_error", None)
-                                st.rerun()
+                                for idx, r in enumerate(results):
+                                    if st.button(
+                                        f"📍 {r['label']}", 
+                                        type="secondary", 
+                                        key=f"place_btn_{idx}", 
+                                        use_container_width=True
+                                    ):
+                                        st.session_state["cached_lat"] = r["lat"]
+                                        st.session_state["cached_lon"] = r["lon"]
+                                        st.session_state["cached_loc_name"] = r["label"]
+                                        st.session_state["override_location"] = False
+                                        st.session_state.pop("need_place_selection_error", None)
+                                        st.rerun()
                             else:
-                                # IP마저 실패할 경우에만 최소한의 수동 검색 단계로 안전 이동
-                                st.session_state["geo_step"] = "STEP3_SEARCH"
-                                st.rerun()
-
-                        if st.session_state["geo_step"] == "STEP3_SEARCH":
-                            st.warning("⚠️ 식물이 있는 장소를 검색해 보세요.")
-
-                            keyword_input = st.text_input(
-                                "검색어 입력",
-                                placeholder="예: 서울숲, 푸른수목원, 도산공원, 우리집 주소",
-                                label_visibility="collapsed",
-                                key="manual_keyword_input"
-                            )
-
-                            if st.session_state.get("need_place_selection_error"):
-                                pass
-
-                            has_search_results = False
-                            if keyword_input.strip():
-                                try:
-                                    results = search_google_places(keyword_input.strip())
-                                    if results:
-                                        has_search_results = True
-                                        st.markdown("검색 결과에서 **식물이 있는 장소를 선택**해주세요.")
-                                        
-                                        # 🌟 검색 결과 버튼 가로 폭 100% 및 좌측 정렬 강제 CSS
-                                        st.markdown("""
-                                            <style>
-                                                div[data-testid="stButton"] {
-                                                    width: 100% !important;
-                                                    max-width: 100% !important;
-                                                    display: block !important;
-                                                }
-                                                div[data-testid="stButton"] > button {
-                                                    width: 100% !important;
-                                                    max-width: 100% !important;
-                                                    text-align: left !important;
-                                                    justify-content: flex-start !important;
-                                                    padding-left: 16px !important;
-                                                }
-                                                div[data-testid="stButton"] > button p {
-                                                    text-align: left !important;
-                                                    width: 100% !important;
-                                                }
-                                            </style>
-                                        """, unsafe_allow_html=True)
-
-                                        for idx, r in enumerate(results):
-                                            if st.button(
-                                                f"📍 {r['label']}", 
-                                                type="secondary", 
-                                                key=f"place_btn_{idx}", 
-                                                use_container_width=True
-                                            ):
-                                                st.session_state["cached_lat"] = r["lat"]
-                                                st.session_state["cached_lon"] = r["lon"]
-                                                st.session_state["cached_loc_name"] = r["label"]
-                                                st.session_state["override_location"] = False
-                                                st.session_state["geo_step"] = "DONE"
-                                                st.session_state.pop("need_place_selection_error", None)
-                                                st.rerun()
-                                    else:
-                                        st.warning("⚠️ 검색 결과가 없어요. 다른 장소를 검색해보세요.")
-                                except Exception as e:
-                                    st.warning(f"장소 검색 오류: {e}")
-
-                            # 검색 결과가 있을 때는 [현재 위치 다시 시도하기] 버튼을 숨김
-                            # if not has_search_results:
-                                # if st.button("현재 위치 다시 시도하기", type="secondary", key="btn_retry_gps"):
-                                    # st.session_state["geo_step"] = "FETCHING_GPS"
-                                    # st.rerun()
+                                st.warning("⚠️ 검색 결과가 없어요. 다른 장소를 검색해보세요.")
+                        except Exception as e:
+                            st.warning(f"장소 검색 오류: {e}")
 
             # 이미지 압축 처리
             img_bytes = None
@@ -581,18 +511,14 @@ def show_diagnose_page():
                     st.markdown("---")
                     st.markdown("""
                         <style>
-                            /* 1. 버튼 전체 중앙 정렬 및 너비 제어 */
                             div.stButton {
                                 display: flex !important;
                                 justify-content: center !important;
                                 margin: 0 auto !important;
                             }
-                            
                             div.stButton > button {
                                 width: 100% !important;
                             }
-
-                            /* 2. Primary 버튼 스타일 */
                             div.stButton > button[kind="primary"] {
                                 font-size: 1.0rem !important;
                                 font-weight: 500 !important;
