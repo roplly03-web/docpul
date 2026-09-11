@@ -449,7 +449,7 @@ def show_diagnose_page():
                                 st.rerun()
 
                         elif st.session_state["geo_step"] == "FETCHING_GPS":
-                            st.info("📍 위치 권한 팝업이 나오면 **허용**을 눌러주세요.")
+                            st.info("📍 위치 권한 팝업이 나오면 **허용**을 눌러주세요. (응답이 없으면 네트워크 위치로 자동 전환됩니다)")
 
                             device_loc = get_geolocation()
 
@@ -467,12 +467,42 @@ def show_diagnose_page():
                                     st.session_state.pop("need_place_selection_error", None)
                                     st.rerun()
 
-                            if st.button("현재 위치 불러오기 취소", type="secondary", key="btn_cancel_gps"):
-                                st.session_state["geo_step"] = "STEP2"
+                            # 🌟 브라우저 GPS가 거부되었거나 응답이 없을 때 IP 기반 위치로 자동 백업 전환
+                            if device_loc is not None and "coords" not in device_loc:
+                                with st.spinner("브라우저 GPS를 사용할 수 없어 네트워크 기반의 대략적인 위치를 확인하고 있습니다..."):
+                                    try:
+                                        ip_res = requests.get("https://ipapi.co/json/", timeout=3)
+                                        if ip_res.status_code == 200:
+                                            ip_data = ip_res.json()
+                                            ip_lat = ip_data.get("latitude")
+                                            ip_lon = ip_data.get("longitude")
+                                            
+                                            if ip_lat and ip_lon:
+                                                st.session_state["cached_lat"] = float(ip_lat)
+                                                st.session_state["cached_lon"] = float(ip_lon)
+                                                
+                                                # 도시/지역 정보 조합 또는 주소 변환
+                                                region_str = ip_data.get("region", "")
+                                                city_str = ip_data.get("city", "")
+                                                fallback_name = f"{region_str} {city_str}".strip()
+                                                
+                                                if not fallback_name:
+                                                    fallback_name = get_address_from_coords(float(ip_lat), float(ip_lon)) or "네트워크 기반 위치"
+                                                    
+                                                st.session_state["cached_loc_name"] = fallback_name
+                                                st.session_state["override_location"] = False
+                                                st.session_state["geo_step"] = "DONE"
+                                                st.session_state.pop("need_place_selection_error", None)
+                                                st.rerun()
+                                    except Exception:
+                                        pass
+
+                                # IP 조회마저 실패 시 기존 수동 검색 단계로 이동
+                                st.session_state["geo_step"] = "STEP3_SEARCH"
                                 st.rerun()
 
-                            if device_loc is not None and "coords" not in device_loc:
-                                st.session_state["geo_step"] = "STEP3_SEARCH"
+                            if st.button("현재 위치 불러오기 취소", type="secondary", key="btn_cancel_gps"):
+                                st.session_state["geo_step"] = "STEP2"
                                 st.rerun()
 
                         if st.session_state["geo_step"] == "STEP3_SEARCH":
