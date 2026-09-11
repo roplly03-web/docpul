@@ -1,0 +1,18 @@
+[server]
+maxUploadSize = 200
+maxMessageSize = 200
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false
+
+
+[client]
+# 우측 상단 햄버거 메뉴 및 하단 풋터 비활성화
+showErrorDetails = false
+toolbarMode = "minimal" # 또는 "viewer", "off" (off 사용 시 모바일 툴바 포함 최소화)
+
+[ui]
+# 상단 헤더 비활성화
+hideTopBar = true
