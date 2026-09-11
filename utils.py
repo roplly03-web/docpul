@@ -13,10 +13,20 @@ from supabase import create_client, Client
 
 
 def apply_global_styles():
-    """잔상 없이 아주 빠르고 깔끔하게 사라지도록 설정"""
+    """상단 로고 가려짐 현상 및 잔상 방지 공통 스타일"""
     st.markdown("""
         <style>
-            /* 0.1초 만에 아주 빠르게 사라지게 만들어 잔상과 툭 끊기는 현상 동시 해결 */
+            /* 1. Streamlit 본문 상단 기본 여백을 줄여서 로고가 위로 올라오게 조정 */
+            .block-container {
+                padding-top: 2.0rem !important; /* 기본값보다 줄임 (보통 6rem 이상임) */
+            }
+            
+            /* 2. 상단 고정 헤더와 겹치는 문제 방지 */
+            header[data-testid="stHeader"] {
+                background: transparent !important;
+            }
+
+            /* 3. 화면 전환 시 잔상 방지 (이전 설정 반영) */
             div[data-testid="stVerticalBlock"], 
             div.element-container, 
             div.stButton {
