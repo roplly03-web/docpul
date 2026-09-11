@@ -449,10 +449,12 @@ def show_diagnose_page():
                                 st.rerun()
 
                         elif st.session_state["geo_step"] == "FETCHING_GPS":
-                            st.info("📍 위치 권한 팝업이 나오면 **허용**을 눌러주세요. (응답이 없으면 네트워크 위치로 자동 전환됩니다)")
+                            st.info("📍 위치 권한 팝업이 나오면 **허용**을 눌러주세요.")
 
+                            # 며칠 전 잘 작동하던 원래의 브라우저 GPS 호출 방식
                             device_loc = get_geolocation()
 
+                            # 1. GPS 정보를 성공적으로 받아온 경우
                             if device_loc and "coords" in device_loc:
                                 raw_lat = device_loc["coords"].get("latitude")
                                 raw_lon = device_loc["coords"].get("longitude")
@@ -467,42 +469,27 @@ def show_diagnose_page():
                                     st.session_state.pop("need_place_selection_error", None)
                                     st.rerun()
 
-                            # 🌟 브라우저 GPS가 거부되었거나 응답이 없을 때 IP 기반 위치로 자동 백업 전환
+                            # 2. 브라우저가 거부했거나 명시적으로 차단한 경우
                             if device_loc is not None and "coords" not in device_loc:
-                                with st.spinner("브라우저 GPS를 사용할 수 없어 네트워크 기반의 대략적인 위치를 확인하고 있습니다..."):
-                                    try:
-                                        ip_res = requests.get("https://ipapi.co/json/", timeout=3)
-                                        if ip_res.status_code == 200:
-                                            ip_data = ip_res.json()
-                                            ip_lat = ip_data.get("latitude")
-                                            ip_lon = ip_data.get("longitude")
-                                            
-                                            if ip_lat and ip_lon:
-                                                st.session_state["cached_lat"] = float(ip_lat)
-                                                st.session_state["cached_lon"] = float(ip_lon)
-                                                
-                                                # 도시/지역 정보 조합 또는 주소 변환
-                                                region_str = ip_data.get("region", "")
-                                                city_str = ip_data.get("city", "")
-                                                fallback_name = f"{region_str} {city_str}".strip()
-                                                
-                                                if not fallback_name:
-                                                    fallback_name = get_address_from_coords(float(ip_lat), float(ip_lon)) or "네트워크 기반 위치"
-                                                    
-                                                st.session_state["cached_loc_name"] = fallback_name
-                                                st.session_state["override_location"] = False
-                                                st.session_state["geo_step"] = "DONE"
-                                                st.session_state.pop("need_place_selection_error", None)
-                                                st.rerun()
-                                    except Exception:
-                                        pass
-
-                                # IP 조회마저 실패 시 기존 수동 검색 단계로 이동
                                 st.session_state["geo_step"] = "STEP3_SEARCH"
                                 st.rerun()
 
-                            if st.button("현재 위치 불러오기 취소", type="secondary", key="btn_cancel_gps"):
-                                st.session_state["geo_step"] = "STEP2"
+                            # 3. 🚨 모바일에서 응답이 없어 멈추는(None) 경우를 대비한 탈출 버튼 (갇힘 방지)
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            st.warning("⚠️ 위치 권한 응답이 지연되고 있습니다. 계속 멈춰 있다면 아래 버튼을 눌러주세요.")
+                            
+                            col_a, col_b = st.columns(2)
+                            with col_a:
+                                if st.button("🔍 직접 주소 검색하기", type="primary", key="btn_force_search_safe"):
+                                    st.session_state["geo_step"] = "STEP3_SEARCH"
+                                    st.rerun()
+                            with col_b:
+                                if st.button("취소하기", type="secondary", key="btn_cancel_gps_safe"):
+                                    st.session_state["geo_step"] = "STEP2"
+                                    st.rerun()
+
+                                # 정말로 IP 조회가 실패했을 때만 수동 검색 단계로 이동
+                                st.session_state["geo_step"] = "STEP3_SEARCH"
                                 st.rerun()
 
                         if st.session_state["geo_step"] == "STEP3_SEARCH":
