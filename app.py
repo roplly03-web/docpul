@@ -111,9 +111,28 @@ if "error_message" not in st.session_state:
     st.session_state["error_message"] = None
 
 # 메인 탭 및 모듈 로드
+# 메인 탭 및 모듈 로드
 try:
     from views.history_view import show_history_page
     from views.map_view import show_map_page
+
+    # 🟢 [추가] 탭 글씨 색상 가독성 개선용 CSS (라이트/다크모드 대응)
+    st.markdown(
+        """
+        <style>
+            [data-testid="stTabs"] button[data-baseweb="tab"] p {
+                color: #333333 !important;
+                font-weight: 500;
+            }
+            @media (prefers-color-scheme: dark) {
+                [data-testid="stTabs"] button[data-baseweb="tab"] p {
+                    color: #f0f0f0 !important;
+                }
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
     tab1, tab2, tab3 = st.tabs(["식물 진단", "진단 기록", "식물 지도"])
 
