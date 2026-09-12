@@ -43,7 +43,7 @@ def init_supabase() -> Client:
     try:
         return create_client(url, key)
     except Exception as e:
-        st.error(f"❌ Supabase 클라이언트 생성 실패: {e}")
+        st.error(f"잠시 문제가 생겼어요. 다시 시도해 주세요.")
         return None
 
 supabase = init_supabase()
@@ -132,7 +132,7 @@ def search_google_places(query: str):
                     })
                 return places
     except Exception as e:
-        st.error(f"검색 네트워크 오류: {e}")
+        st.error(f"장소를 찾지 못했어요. 잠시 후 다시 시도해 주세요.")
     return []
     
 # ==========================================
@@ -371,8 +371,8 @@ def call_gemini_structured_diagnosis(img_bytes, location_name=None, lat=None, lo
 [진단 환경 정보]
 ==================================================
 
-검사 요청 위치: {loc_info}
-검사 요청 일시: {time_info}
+식물이 있는 곳: {loc_info}
+사진을 찍은 시점: {time_info}
 
 사진에서 확인되는 정보와 위의 위치 및 시점 정보를 함께 고려하세요.
 
@@ -385,7 +385,9 @@ def call_gemini_structured_diagnosis(img_bytes, location_name=None, lat=None, lo
 - 사진에서 확인되는 증상과 지역 및 계절적 환경 사이의 연관성
 
 단, 위치나 시점 정보만을 근거로 병해충이나 특정 원인을 단정하지 마세요.
-사진에서 관찰되는 증상과 환경 정보를 함께 고려하여 합리적으로 판단하세요.
+사진을 자세히 살펴보고,
+사진에서 확인되는 특징과 식물이 있는 곳 및 사진을 찍은 시점의 정보를 함께 고려하여
+식물의 종류, 현재 상태, 이상 증상, 병해충 가능성 및 관리 방법을 살펴보세요.
 
 
 ==================================================
@@ -705,7 +707,7 @@ def call_gemini_structured_diagnosis(img_bytes, location_name=None, lat=None, lo
 
         return {
             "status": "ERROR", 
-            "message": f"⚠️ 모든 API Key의 사용량이 소진되었거나 AI 호출에 실패했습니다. (상세 원인: {last_error_log})"
+            "message": f"모든 API Key의 사용량이 소진되었거나 AI 호출에 실패했습니다. (상세 원인: {last_error_log})"
         }
 
     except Exception as e:
