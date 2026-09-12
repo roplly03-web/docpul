@@ -7,6 +7,8 @@ import streamlit as st
 import time
 import threading
 from utils import apply_global_styles
+import math
+import streamlit.components.v1 as components
 
 # 페이지가 시작될 때 한 번만 호출
 apply_global_styles()
@@ -307,7 +309,7 @@ def show_diagnose_page():
                 st.rerun()
 
         # ---------------------------------------------------------
-        # VIEW 2: 식물 진단 UI (Zero-Click 자동 위치 수집 적용)
+        # VIEW 2: 식물 진단 UI
         # ---------------------------------------------------------
         else:
             st.markdown("<br>", unsafe_allow_html=True)
@@ -356,99 +358,50 @@ def show_diagnose_page():
 
             import math
 
-            # ---------------------------------------------------------
-            # 🌟 [완벽 고정형] 다중 방어선 기반 위치 자동 수집 및 검증 로직
-            # ---------------------------------------------------------
-            lat, lon = None, None
-            selected_loc_name = ""
+            import math
 
+            import math
+
+            # ---------------------------------------------------------
+            # 🌟 [요청하신 완벽한 3단계 흐름] EXIF ➔ 브라우저 GPS 버튼 ➔ 수동 검색
+            # ---------------------------------------------------------
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
-            # 현재 업로드된 파일 이름 확인 (파일이 바뀌면 위치 캐시를 초기화하기 위함)
+            # 파일이 바뀌면 위치 관련 캐시 초기화
             current_file_name = uploaded_file.name if uploaded_file else "no_file"
-            last_file_name = st.session_state.get("last_file_name", "")
-
-            if current_file_name != last_file_name:
-                # 새 사진을 올렸다면 이전 위치 캐시를 깨끗하게 비움
+            if st.session_state.get("last_file_name") != current_file_name:
                 st.session_state["last_file_name"] = current_file_name
-                st.session_state.pop("cached_lat", None)
-                st.session_state.pop("cached_lon", None)
-                st.session_state.pop("cached_loc_name", None)
-                st.session_state.pop("override_location", None)
+                for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_failed"]:
+                    st.session_state.pop(key, None)
 
-            # 유효한 캐시가 있는지 확인하는 함수형 검증
-            def is_valid_coord(val):
+            def is_valid(val):
                 try:
-                    f = float(val)
-                    return not math.isnan(f) and not math.isinf(f)
-                except (TypeError, ValueError):
+                    return not math.isnan(float(val)) and not math.isinf(float(val))
+                except:
                     return False
 
-            cached_lat_val = st.session_state.get("cached_lat")
-            cached_lon_val = st.session_state.get("cached_lon")
-            has_valid_cache = is_valid_coord(cached_lat_val) and is_valid_coord(cached_lon_val)
-
-            # 캐시가 없고, 사용자가 수동 지정을 누르지 않은 경우에만 딱 한 번 위치 탐색 수행
-            if not has_valid_cache and not st.session_state.get("override_location"):
-                photo_lat, photo_lon = None, None
-                
-                # [1차] 사진 EXIF GPS 추출 시도
+            # [1단계] 사진 내부 EXIF GPS 추출 시도 (최초 1회)
+            if not is_valid(st.session_state.get("cached_lat")) and not st.session_state.get("override_location"):
                 try:
-                    photo_lat, photo_lon = extract_gps_from_image(image)
-                except Exception:
+                    p_lat, p_lon = extract_gps_from_image(image)
+                    if is_valid(p_lat) and is_valid(p_lon):
+                        st.session_state["cached_lat"] = float(p_lat)
+                        st.session_state["cached_lon"] = float(p_lon)
+                        addr = get_address_from_coords(p_lat, p_lon)
+                        st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({p_lat:.4f}, {p_lon:.4f})"
+                except:
                     pass
 
-                if is_valid_coord(photo_lat) and is_valid_coord(photo_lon):
-                    lat, lon = float(photo_lat), float(photo_lon)
-
-                # [2차] 모바일/PC 브라우저 위치 획득 시도
-                if not is_valid_coord(lat) or not is_valid_coord(lon):
-                    try:
-                        browser_geo = get_geolocation()
-                        if browser_geo and isinstance(browser_geo, dict) and "coords" in browser_geo:
-                            b_lat = browser_geo["coords"].get("latitude")
-                            b_lon = browser_geo["coords"].get("longitude")
-                            if is_valid_coord(b_lat) and is_valid_coord(b_lon):
-                                lat, lon = float(b_lat), float(b_lon)
-                    except Exception:
-                        pass
-
-                # [3차] IP 위치 (단, 매번 흔들리는 것을 방지하기 위해 세션에 저장되거나 실패 시 안정적인 서울 중심 좌표 기본값 사용)
-                if not is_valid_coord(lat) or not is_valid_coord(lon):
-                    try:
-                        ip_fallback = get_location_by_ip()
-                        if ip_fallback and is_valid_coord(ip_fallback.get("latitude")) and is_valid_coord(ip_fallback.get("longitude")):
-                            lat = float(ip_fallback["latitude"])
-                            lon = float(ip_fallback["longitude"])
-                    except Exception:
-                        pass
-
-                # [최후의 안정망] 모든 방법이 실패하거나 nan이 반환될 경우, 흔들리지 않는 안정적인 기본 좌표(서울 시청 기준) 지정
-                if not is_valid_coord(lat) or not is_valid_coord(lon):
-                    lat, lon = 37.5665, 126.9780
-                    selected_loc_name = "대한민국 서울 (기본 위치)"
-                else:
-                    # 좌표가 정상 확보된 경우 주소 변환 시도
-                    try:
-                        addr = get_address_from_coords(lat, lon)
-                        selected_loc_name = addr if addr else f"위치 좌표 ({lat:.4f}, {lon:.4f})"
-                    except Exception:
-                        selected_loc_name = f"위치 좌표 ({lat:.4f}, {lon:.4f})"
-
-                # 확정된 좌표를 캐시에 영구 저장하여 이후 리렌더링 시 절대 흔들리지 않도록 고정
-                st.session_state["cached_lat"] = lat
-                st.session_state["cached_lon"] = lon
-                st.session_state["cached_loc_name"] = selected_loc_name
-            else:
-                # 이미 캐시되었거나 수동 지정 모드인 경우 불러오기
-                lat = float(st.session_state.get("cached_lat", 37.5665))
-                lon = float(st.session_state.get("cached_lon", 126.9780))
-                selected_loc_name = st.session_state.get("cached_loc_name", "대한민국 서울 (기본 위치)")
+            lat = st.session_state.get("cached_lat")
+            lon = st.session_state.get("cached_lon")
+            loc_name = st.session_state.get("cached_loc_name", "")
 
             # ---------------------------------------------------------
-            # 위치 정보 표시 및 변경 UI (진단 중이 아니고 리포트가 없을 때)
+            # 🖥️ UI 영역: 3단계 흐름 반영
             # ---------------------------------------------------------
+            keyword_input = ""
+            
             if not has_report and not is_diagnosing:
                 st.markdown("---")
                 st.markdown("""
@@ -458,25 +411,68 @@ def show_diagnose_page():
                     </p>
                 """, unsafe_allow_html=True)
 
-                # 기본적으로 자동 감지된 위치를 깔끔하게 출력 (수동 검색창을 기본으로 열지 않음)
-                if not st.session_state.get("override_location") and lat and lon:
-                    st.success(f"📍 **확인된 위치:** {format_location_display(selected_loc_name, lat, lon)}")
+                # 1. 위치가 이미 확인된 경우 (EXIF 또는 정상 획득)
+                if is_valid(lat) and is_valid(lon) and not st.session_state.get("override_location"):
+                    col1, col2 = st.columns([5, 1])
+                    with col1:
+                        st.success(f"📍 **식물이 있는 곳:** {format_location_display(loc_name, lat, lon)}")
+                    with col2:
+                        if st.button("변경", key="btn_loc_change"):
+                            st.session_state["override_location"] = True
+                            st.session_state.pop("cached_lat", None)
+                            st.session_state.pop("cached_lon", None)
+                            st.rerun()
+                            
+                # 2. 위치가 없고, 수동 모드도 아닐 때: [내 현재 위치 불러오기] 버튼 제공
+                elif not st.session_state.get("override_location"):
+                    st.info("💡 사진에 위치 정보가 없습니다. 버튼을 눌러 현재 위치를 불러와 주세요.")
                     
-                    # 위치를 바꾸고 싶은 사람만 이 버튼을 누르게 유도
-                    if st.button("다른 장소로 직접 지정하기", type="secondary", key="btn_change_auto_loc"):
-                        st.session_state["override_location"] = True
+                    if "requesting_geo" not in st.session_state:
+                        st.session_state["requesting_geo"] = False
+
+                    if st.button("📍 내 현재 위치 불러오기", type="primary", key="btn_get_browser_geo"):
+                        st.session_state["requesting_geo"] = True
                         st.rerun()
-                else:
-                    # 사용자가 명확하게 '다른 장소로 직접 지정하기'를 눌렀을 때만 검색창 노출
-                    st.info("🔍 변경할 장소의 이름이나 주소를 입력해주세요.")
+
+                    if st.session_state.get("requesting_geo"):
+                        with st.spinner("🛰️ GPS 신호를 확인하는 중... 브라우저의 위치 권한 팝업을 허용해 주세요."):
+                            geo_result = get_geolocation()
+                            
+                            if geo_result and isinstance(geo_result, dict) and "coords" in geo_result:
+                                coords = geo_result["coords"]
+                                b_lat = coords.get("latitude")
+                                b_lon = coords.get("longitude")
+                                
+                                if b_lat and b_lon:
+                                    st.session_state["cached_lat"] = float(b_lat)
+                                    st.session_state["cached_lon"] = float(b_lon)
+                                    addr = get_address_from_coords(b_lat, b_lon)
+                                    st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
+                                    st.session_state["requesting_geo"] = False
+                                    st.success("✅ 위치 획득 성공!")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                            elif geo_result is not None:
+                                st.session_state["requesting_geo"] = False
+                                st.warning("⚠️ 위치 정보를 가져오지 못했거나 권한이 거부되었습니다.")
+
+                    # 수동 검색 전환 버튼
+                    if st.button("수동으로 장소 직접 입력하기", type="secondary", key="btn_switch_manual"):
+                        st.session_state["override_location"] = True
+                        st.session_state["requesting_geo"] = False
+                        st.rerun()
+
+                # 3. [최후의 보루] 수동 검색창 노출
+                if st.session_state.get("override_location"):
+                    st.warning("⚠️ **현재 위치를 가져올 수 없으니 정밀 진단을 위해 식물 위치를 지정해 주세요.**")
                     keyword_input = st.text_input(
-                        "검색어 입력",
-                        placeholder="예: 서울숲, 푸른수목원, 우리집 주소",
+                        "장소 검색",
+                        placeholder="예: 강릉시 중앙동, 속초 수목원, 우리집 주소",
                         label_visibility="collapsed",
                         key="manual_keyword_input"
                     )
-                    # (이하 검색 결과 버튼 처리 로직 유지)
-
+                    
+                    # (이하 검색 결과 버튼 처리 로직)
                     if keyword_input.strip():
                         try:
                             results = search_google_places(keyword_input.strip())
