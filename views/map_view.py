@@ -20,7 +20,7 @@ def get_local_health_status(score: int):
     if score >= 80:
         return {"text": "건강한 편이에요", "score_class": "healthy"}
     elif score >= 60:
-        return {"text": "조금 살펴봐요", "score_class": "normal"}
+        return {"text": "관찰이 필요해요", "score_class": "normal"}
     elif score >= 40:
         return {"text": "관리가 필요해요", "score_class": "warning"}
     else:
@@ -39,7 +39,7 @@ def get_diagnosis_history():
             .execute()
         return response.data or []
     except Exception as e:
-        st.error(f"데이터 로드 실패: {e}")
+        st.error(f"식물 지도를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
         return []
 
 def show_map_page():
@@ -47,7 +47,7 @@ def show_map_page():
     st.markdown("""
         <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">우리 주변 식물을 지도에서 살펴봐요
         </h4>
-        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀에서 살펴본 식물들을 지도에서 만나볼 수 있어요.
+        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀에서 살펴본 식물이 어디에서 발견되었는지 지도에서 확인할 수 있어요.
         </p>
     """, unsafe_allow_html=True)
 
@@ -56,7 +56,7 @@ def show_map_page():
     # 1. Google Maps API Key 확인
     google_maps_key = st.secrets.get("GOOGLE_MAPS_API_KEY")
     if not google_maps_key:
-        st.error("⚠️ Secrets 설정에서 `GOOGLE_MAPS_API_KEY`를 찾을 수 없습니다.")
+        st.error("지도를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
         return
 
     records = get_diagnosis_history()
@@ -76,7 +76,7 @@ def show_map_page():
             "score": score,
             "status_text": status_info["text"],
             "score_class": status_info["score_class"],
-            "location": r.get("location_name", "위치를 알 수 없어요"),
+            "location": r.get("location_name") or "위치를 확인할 수 없어요",
             "lat": r["latitude"],
             "lng": r["longitude"],
             "image": r.get("image_url", "")
@@ -205,4 +205,4 @@ def show_map_page():
     </html>
     """
 
-    components.html(google_map_html, height=600)
+    components.html(google_map_html, height=550)
