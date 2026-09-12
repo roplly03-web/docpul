@@ -100,8 +100,8 @@ def show_diagnose_page():
         st.session_state.get("latest_report") is not None
     )
 
-    if st.session_state.get("current_page") != "닥풀 AI":
-        st.session_state["current_page"] = "닥풀 AI"
+    if st.session_state.get("current_page") != "식물 진단":
+        st.session_state["current_page"] = "식물 진단"
         # 다른 탭에서 넘어온 경우에만 View 1로 리셋 (단, 진단 작업 중이 아니거나 파일을 올린 적이 없을 때만)
         if not is_in_diagnosis_process:
             st.session_state["show_diagnosis_form"] = False
