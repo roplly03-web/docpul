@@ -115,23 +115,6 @@ try:
     from views.history_view import show_history_page
     from views.map_view import show_map_page
 
-    # 탭 글씨 색상 제어 CSS (라이트/다크모드 대응)
-    st.markdown(
-        """
-        <style>
-            div[data-baseweb="tab-list"] button[data-baseweb="tab"] * {
-                color: #262730 !important;
-            }
-            @media (prefers-color-scheme: dark) {
-                div[data-baseweb="tab-list"] button[data-baseweb="tab"] * {
-                    color: #f0f0f0 !important;
-                }
-            }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
     tab1, tab2, tab3 = st.tabs(["식물 진단", "진단 기록", "식물 지도"])
 
     with tab1:
