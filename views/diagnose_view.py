@@ -348,7 +348,7 @@ def show_diagnose_page():
                 st.session_state.pop("is_diagnosing", None)
                 return
 
-            # 2. 이미지 표시
+            # 2. 이미지 표시 및 위치 변수 선언
             try:
                 image = Image.open(uploaded_file)
                 st.image(image, use_container_width=True)
@@ -356,15 +356,11 @@ def show_diagnose_page():
                 st.error(f"❌ 이미지를 읽는 중 오류가 발생했습니다: {e}")
                 return
 
-            import math
+            # 위치 관련 변수 초기 선언 (NameError 방지)
+            lat = st.session_state.get("cached_lat")
+            lon = st.session_state.get("cached_lon")
+            selected_loc_name = st.session_state.get("cached_loc_name", "")
 
-            import math
-
-            import math
-
-            # ---------------------------------------------------------
-            # 🌟 [요청하신 완벽한 3단계 흐름] EXIF ➔ 브라우저 GPS 버튼 ➔ 수동 검색
-            # ---------------------------------------------------------
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
@@ -374,6 +370,7 @@ def show_diagnose_page():
                 st.session_state["last_file_name"] = current_file_name
                 for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_failed"]:
                     st.session_state.pop(key, None)
+                lat, lon, selected_loc_name = None, None, ""
 
             def is_valid(val):
                 try:
@@ -382,7 +379,7 @@ def show_diagnose_page():
                     return False
 
             # [1단계] 사진 내부 EXIF GPS 추출 시도 (최초 1회)
-            if not is_valid(st.session_state.get("cached_lat")) and not st.session_state.get("override_location"):
+            if not is_valid(lat) and not st.session_state.get("override_location"):
                 try:
                     p_lat, p_lon = extract_gps_from_image(image)
                     if is_valid(p_lat) and is_valid(p_lon):
@@ -390,18 +387,14 @@ def show_diagnose_page():
                         st.session_state["cached_lon"] = float(p_lon)
                         addr = get_address_from_coords(p_lat, p_lon)
                         st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({p_lat:.4f}, {p_lon:.4f})"
+                        lat, lon = float(p_lat), float(p_lon)
+                        selected_loc_name = st.session_state["cached_loc_name"]
                 except:
                     pass
 
-            lat = st.session_state.get("cached_lat")
-            lon = st.session_state.get("cached_lon")
-            loc_name = st.session_state.get("cached_loc_name", "")
-
             # ---------------------------------------------------------
-            # 🖥️ UI 영역: 3단계 흐름 반영
+            # 🖥️ 위치 설정 통합 블록 (URL파라미터 ➔ 기 지정됨 ➔ 브라우저 GPS ➔ 수동 검색)
             # ---------------------------------------------------------
-            keyword_input = ""
-            
             if not has_report and not is_diagnosing:
                 st.markdown("---")
                 st.markdown("""
@@ -411,69 +404,42 @@ def show_diagnose_page():
                     </p>
                 """, unsafe_allow_html=True)
 
-                # 1. URL 쿼리 파라미터로 GPS 좌표가 전달되어 왔는지 우선 확인
+                # 1. URL 쿼리 파라미터 확인[cite: 3]
                 query_params = st.query_params
                 if "lat" in query_params and "lon" in query_params:
                     try:
                         b_lat = float(query_params["lat"])
                         b_lon = float(query_params["lon"])
-                        if "cached_lat" not in st.session_state:
-                            st.session_state["cached_lat"] = b_lat
-                            st.session_state["cached_lon"] = b_lon
-                            addr = get_address_from_coords(b_lat, b_lon)
-                            st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
-                            st.query_params.clear()
-                            st.rerun()
+                        st.session_state["cached_lat"] = b_lat
+                        st.session_state["cached_lon"] = b_lon
+                        addr = get_address_from_coords(b_lat, b_lon)
+                        st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
+                        st.query_params.clear()
+                        st.rerun()
                     except Exception:
                         pass
 
-                # 2. 위치가 없고, 수동 모드가 아닐 때: Streamlit 네이티브 버튼 + 안전한 JS 브리지 활용
-                elif not st.session_state.get("override_location"):
-                    st.info("💡 사진에 위치 정보가 없습니다. 버튼을 눌러 정확한 기기 GPS 위치를 가져오세요.")
-                    
-                    # 배포 환경에서도 확실하게 동작하는 Streamlit 네이티브 버튼
-                    if st.button("📍 기기 GPS 현재 위치 가져오기", type="primary", key="btn_get_browser_geo_native"):
-                        # Streamlit 프론트엔드 레벨에서 브라우저 geolocation을 호출하는 안전한 스크립트 주입
-                        geo_trigger_js = """
-                        <script>
-                        if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition(
-                                function(position) {
-                                    const lat = position.coords.latitude;
-                                    const lon = position.coords.longitude;
-                                    // 현재 페이지 주소에 좌표를 붙여서 리로드 (부모창 탈출 및 중첩 방지)
-                                    const targetUrl = window.location.pathname + "?lat=" + lat + "&lon=" + lon;
-                                    window.location.href = targetUrl;
-                                },
-                                function(error) {
-                                    alert("⚠️ 위치 권한이 거부되었거나 GPS를 사용할 수 없습니다. (설정을 확인해주세요)");
-                                },
-                                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                            );
-                        } else {
-                            alert("❌ 이 브라우저는 위치 정보를 지원하지 않습니다.");
-                        }
-                        </script>
-                        """
-                        components.html(geo_trigger_js, height=0, width=0)
-
-                    # 수동 검색 전환 버튼
-                    if st.button("수동으로 장소 직접 입력하기", type="secondary", key="btn_switch_manual"):
+                # 2. 이미 위치가 성공적으로 지정된 경우 (수동 검색 완료 포함)
+                if is_valid(lat):
+                    st.success(f"📍 지정된 위치: **{selected_loc_name}**")
+                    if st.button("위치 다시 지정하기", type="secondary", key="btn_reset_loc"):
+                        st.session_state.pop("cached_lat", None)
+                        st.session_state.pop("cached_lon", None)
+                        st.session_state.pop("cached_loc_name", None)
                         st.session_state["override_location"] = True
                         st.rerun()
 
-                # 3. [최후의 보루] 수동 검색창 노출 (위치 정보를 도저히 가져올 수 없을 때만)
-                if st.session_state.get("override_location"):
+                # 3. 수동 검색 모드가 켜져 있는 경우 (입력창과 검색 결과 버튼 제공)[cite: 3]
+                elif st.session_state.get("override_location"):
                     st.warning("⚠️ **현재 위치를 가져올 수 없으니 정밀 진단을 위해 식물 위치를 지정해 주세요.**")
+                    
                     keyword_input = st.text_input(
                         "장소 검색",
                         placeholder="예: 강릉시 중앙동, 속초 수목원, 우리집 주소",
-                        label_visibility="collapsed",
                         key="manual_keyword_input"
                     )
                     
-                    # (이하 검색 결과 버튼 처리 로직)
-                    if keyword_input.strip():
+                    if keyword_input and keyword_input.strip():
                         try:
                             results = search_google_places(keyword_input.strip())
                             if results:
@@ -481,32 +447,17 @@ def show_diagnose_page():
                                 
                                 st.markdown("""
                                     <style>
-                                        div[data-testid="stButton"] {
-                                            width: 100% !important;
-                                            max-width: 100% !important;
-                                            display: block !important;
-                                        }
                                         div[data-testid="stButton"] > button {
                                             width: 100% !important;
-                                            max-width: 100% !important;
                                             text-align: left !important;
                                             justify-content: flex-start !important;
                                             padding-left: 16px !important;
-                                        }
-                                        div[data-testid="stButton"] > button p {
-                                            text-align: left !important;
-                                            width: 100% !important;
                                         }
                                     </style>
                                 """, unsafe_allow_html=True)
 
                                 for idx, r in enumerate(results):
-                                    if st.button(
-                                        f"📍 {r['label']}", 
-                                        type="secondary", 
-                                        key=f"place_btn_{idx}", 
-                                        use_container_width=True
-                                    ):
+                                    if st.button(f"📍 {r['label']}", type="secondary", key=f"place_btn_{idx}", use_container_width=True):
                                         st.session_state["cached_lat"] = r["lat"]
                                         st.session_state["cached_lon"] = r["lon"]
                                         st.session_state["cached_loc_name"] = r["label"]
@@ -518,7 +469,33 @@ def show_diagnose_page():
                         except Exception as e:
                             st.warning(f"장소 검색 오류: {e}")
 
-            # 이미지 압축 처리
+                # 4. 위치가 없고 수동 모드도 아닐 때: [내 현재 위치 불러오기] 및 수동 전환 버튼[cite: 3]
+                else:
+                    st.info("💡 사진에 위치 정보가 없습니다. 버튼을 눌러 현재 위치를 불러와 주세요.")
+                    
+                    geo_result = get_geolocation()
+                    
+                    if st.button("📍 내 현재 위치 불러오기", type="primary", key="btn_get_browser_geo"):
+                        if geo_result and isinstance(geo_result, dict) and "coords" in geo_result:
+                            coords = geo_result["coords"]
+                            b_lat = coords.get("latitude")
+                            b_lon = coords.get("longitude")
+                            
+                            if b_lat and b_lon:
+                                st.session_state["cached_lat"] = float(b_lat)
+                                st.session_state["cached_lon"] = float(b_lon)
+                                addr = get_address_from_coords(b_lat, b_lon)
+                                st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
+                                st.success("✅ 위치 획득 성공!")
+                                st.rerun()
+                        else:
+                            st.warning("⚠️ 위치 권한 허용 팝업이 뜨지 않았거나 권한이 거부되었습니다. 다시 시도해 주세요.")
+
+                    if st.button("수동으로 장소 직접 입력하기", type="secondary", key="btn_switch_manual"):
+                        st.session_state["override_location"] = True
+                        st.rerun()
+
+            # 이미지 압축 처리[cite: 3]
             img_bytes = None
             try:
                 img_byte_arr = io.BytesIO()
@@ -532,7 +509,7 @@ def show_diagnose_page():
                 return
 
             # ---------------------------------------------------------
-            # 3. AI 진단 시작 버튼 (진단 진행 중이 아니고, 리포트가 없을 때만 표시)
+            # 3. AI 진단 시작 버튼
             # ---------------------------------------------------------
             action_container = st.empty()
 
@@ -578,18 +555,18 @@ def show_diagnose_page():
                             st.error("⚠️ 사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
                             st.stop()
 
-                        unsubmitted_text = st.session_state.get("manual_keyword_input", "").strip()
-                        if not selected_loc_name and unsubmitted_text:
-                            st.session_state["need_place_selection_error"] = True
-                            st.rerun()
+                        # 위치가 선택되지 않았을 때의 경고 처리
+                        current_lat = st.session_state.get("cached_lat")
+                        if not is_valid(current_lat):
+                            st.error("⚠️ 진단을 위해 식물의 위치를 먼저 지정해 주세요.")
+                            st.stop()
 
-                        # 🌟 즉시 상태 변경 및 버튼 영역 비우기 처리
                         st.session_state["is_diagnosing"] = True
                         action_container.empty()
                         st.rerun()
                     
             # ---------------------------------------------------------
-            # 4. 진단 진행 중 상태 처리 (버튼이 숨겨진 상태에서만 실행)
+            # 4. 진단 진행 중 상태 처리
             # ---------------------------------------------------------
             if is_diagnosing and not has_report:
                 st.markdown("---")
@@ -619,9 +596,9 @@ def show_diagnose_page():
                 def run_diagnosis():
                     res_box["data"] = call_gemini_structured_diagnosis(
                         img_bytes=img_bytes,
-                        location_name=selected_loc_name,
-                        lat=lat,
-                        lon=lon,
+                        location_name=st.session_state.get("cached_loc_name", ""),
+                        lat=st.session_state.get("cached_lat"),
+                        lon=st.session_state.get("cached_lon"),
                         datetime_str=current_time_str
                     )
 
@@ -630,7 +607,6 @@ def show_diagnose_page():
 
                 TARGET_SECONDS = 50.0
                 MAX_HOLD_PERCENT = 85
-
                 start_time = time.time()
 
                 while api_thread.is_alive():
@@ -673,26 +649,16 @@ def show_diagnose_page():
                     one_line_summary = summary_match.group(1).strip() if summary_match else ""
 
                     sci_name = parse_primary_scientific_name(ai_raw_result)
-
                     is_not_plant = (confidence == 0) or ("식물 아님" in estimated_plant_name) or ("비식물" in estimated_plant_name)
 
                     if not is_not_plant:
-                        symptoms_match = re.search(
-                            r'#+\s*이상\s*증상\s*및\s*상태\s*분석\s*\n+(.*?)(?=\n+#+|\Z)', 
-                            ai_raw_result, re.DOTALL
-                        )
+                        symptoms_match = re.search(r'#+\s*이상\s*증상\s*및\s*상태\s*분석\s*\n+(.*?)(?=\n+#+|\Z)', ai_raw_result, re.DOTALL)
                         symptoms_text = symptoms_match.group(1).strip() if symptoms_match else ""
 
-                        details_match = re.search(
-                            r'#+\s*시각적\s*특징\s*및\s*식별\s*근거\s*\n+(.*?)(?=\n+#+|\Z)', 
-                            ai_raw_result, re.DOTALL
-                        )
+                        details_match = re.search(r'#+\s*시각적\s*특징\s*및\s*식별\s*근거\s*\n+(.*?)(?=\n+#+|\Z)', ai_raw_result, re.DOTALL)
                         details_text = details_match.group(1).strip() if details_match else ""
 
-                        urgent_match = re.search(
-                            r'#+\s*먼저\s*해주세요\s*\n+(.*?)(?=\n+#+|\Z)', 
-                            ai_raw_result, re.DOTALL
-                        )
+                        urgent_match = re.search(r'#+\s*먼저\s*해주세요\s*\n+(.*?)(?=\n+#+|\Z)', ai_raw_result, re.DOTALL)
                         urgent_text = urgent_match.group(1).strip() if urgent_match else ""         
 
                         try:
@@ -703,9 +669,9 @@ def show_diagnose_page():
                                 plant_name=estimated_plant_name,
                                 health_score=health_score, 
                                 confidence=confidence, 
-                                lat=lat, 
-                                lon=lon, 
-                                loc_name=selected_loc_name, 
+                                lat=st.session_state.get("cached_lat"), 
+                                lon=st.session_state.get("cached_lon"), 
+                                loc_name=st.session_state.get("cached_loc_name", ""), 
                                 report=ai_raw_result,
                                 symptoms=symptoms_text,
                                 details=details_text,
@@ -720,9 +686,9 @@ def show_diagnose_page():
                         "plant_name": estimated_plant_name,
                         "scientific_name": sci_name,
                         "one_line_summary": one_line_summary,
-                        "lat": lat,
-                        "lon": lon,
-                        "location_name": selected_loc_name,
+                        "lat": st.session_state.get("cached_lat"),
+                        "lon": st.session_state.get("cached_lon"),
+                        "location_name": st.session_state.get("cached_loc_name", ""),
                         "raw_report": ai_raw_result
                     }
                     st.rerun()
@@ -732,32 +698,25 @@ def show_diagnose_page():
             # ---------------------------------------------------------
             if st.session_state.get("latest_report"):
                 rep = st.session_state["latest_report"]
-                
                 st.markdown("---")
                 
                 is_not_plant = (rep['confidence'] == 0) or ("식물 아님" in rep['plant_name']) or ("비식물" in rep['plant_name'])
 
                 if is_not_plant:
-                    raw_text = rep['raw_report']
-                    st.markdown(sanitize_and_format_markdown(raw_text))
-
+                    st.markdown(sanitize_and_format_markdown(rep['raw_report']))
                 else:
                     st.subheader("닥풀 AI 진단 요약")
                     
                     with st.container(border=True):
                         score = rep['health_score']
                         if score >= 80:
-                            status_text = "건강한 편이에요"
-                            badge_bg, badge_fg = "#E6F4EA", "#137333"
+                            status_text, badge_bg, badge_fg = "건강한 편이에요", "#E6F4EA", "#137333"
                         elif score >= 60:
-                            status_text = "조금 살펴봐요"
-                            badge_bg, badge_fg = "#F1F3F4", "#3C4043"
+                            status_text, badge_bg, badge_fg = "조금 살펴봐요", "#F1F3F4", "#3C4043"
                         elif score >= 40:
-                            status_text = "관리가 필요해요"
-                            badge_bg, badge_fg = "#FCE8E6", "#C5221F"
+                            status_text, badge_bg, badge_fg = "관리가 필요해요", "#FCE8E6", "#C5221F"
                         else:
-                            status_text = "도움이 필요해요"
-                            badge_bg, badge_fg = "#FCE8E6", "#C5221F"
+                            status_text, badge_bg, badge_fg = "도움이 필요해요", "#FCE8E6", "#C5221F"
 
                         m1, m2 = st.columns(2)
 
@@ -777,16 +736,7 @@ def show_diagnose_page():
                                 <div style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; box-sizing: border-box;">
                                     <div style="font-size: 0.85rem; color: #666; font-weight: 400; margin-bottom: 6px;">추정 식물</div>
                                     <div style="width: 100%; display: flex; align-items: center; justify-content: center; min-height: 2.0rem; margin: 4px 0; line-height: 1.2;">
-                                        <span style="
-                                            font-size: clamp(0.85rem, 3.5cqw + 0.2rem, 1.3rem);
-                                            font-weight: 700;
-                                            color: #111;
-                                            white-space: nowrap;
-                                            overflow: hidden;
-                                            text-overflow: ellipsis;
-                                            max-width: 100%;
-                                            display: inline-block;
-                                        " title="{rep['plant_name']}">
+                                        <span style="font-size: clamp(0.85rem, 3.5cqw + 0.2rem, 1.3rem); font-weight: 700; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block;">
                                             {rep['plant_name']}
                                         </span>
                                     </div>
@@ -797,30 +747,16 @@ def show_diagnose_page():
                             """, unsafe_allow_html=True)
                         
                         st.markdown('<hr style="margin: 16px 0 20px 0; border: none; border-top: 1px solid #e6e6e6;">', unsafe_allow_html=True)
-
                         st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**학명** `{rep['scientific_name'] or '학명을 알 수 없어요'}`")
                         st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**식물이 있는 곳** `{format_location_display(rep['location_name'], rep['lat'], rep['lon'])}`")
                         
                         summary_text = rep.get("one_line_summary")
-                        if not summary_text and rep.get("raw_report"):
-                            match = re.search(r'(?:닥풀의\s*한마디|한\s*줄\s*종합\s*소견|한줄소견)\s*[:=]\s*([^\n]+)', rep["raw_report"])
-                            if match:
-                                summary_text = match.group(1).strip()
-
                         if summary_text:
                             st.info(f"💡 **닥풀의 한마디**\n\n {summary_text}")
 
                     raw_text = rep['raw_report']
                     DETAIL_REPORT_MARKER = "### 닥풀 AI 진단 리포트"
-                    if DETAIL_REPORT_MARKER in raw_text:
-                        report_body =(
-                             DETAIL_REPORT_MARKER
-                             + raw_text.split(DETAIL_REPORT_MARKER, 1)[1]
-                        )
-                    else:
-                        report_body = "상세 진단 내용을 확인할 수 없어요."
+                    report_body = (DETAIL_REPORT_MARKER + raw_text.split(DETAIL_REPORT_MARKER, 1)[1]) if DETAIL_REPORT_MARKER in raw_text else "상세 진단 내용을 확인할 수 없어요."
 
                     st.divider()
-                    
-                    with st.container(border=False):
-                        st.markdown(sanitize_and_format_markdown(report_body))
+                    st.markdown(sanitize_and_format_markdown(report_body))
