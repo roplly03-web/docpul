@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-# 1. 프로젝트 루트 경로 sys.path 추가
+# 프로젝트 루트 경로 추가
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
@@ -10,18 +10,25 @@ if str(BASE_DIR) not in sys.path:
 import streamlit as st
 from supabase import create_client, Client
 
-# diagnose 모듈 임포트
+# diagnose 모듈 임포트 안전 처리
 try:
     from diagnose import show_diagnose_page, clear_diagnosis_state
 except ImportError:
-    from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
+    try:
+        from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
+    except Exception as inner_e:
+        st.error(f"닥풀을 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
 
-# 🌟 탭이나 다른 렌더링보다 "최상단"에서 query_params(reset)를 먼저 감지하여 처리
+# 쿼리 파라미터 기반 탭 상태 동기화 및 홈(리셋) 처리
+query_tab = st.query_params.get("tab")
+if query_tab in ["닥풀 AI", "진단 기록", "식물 지도"]:
+    st.session_state["current_page"] = query_tab
+
 if st.query_params.get("reset") == "true":
     clear_diagnosis_state()
+    st.session_state["current_page"] = "닥풀 AI"
+    st.session_state["show_diagnosis_form"] = False
     st.query_params.clear()
-    # 탭 상태도 첫 번째 탭("식물 진단")으로 강제 이동시키고 싶다면 여기서 세션 제어 가능
-
 
 # Supabase 클라이언트 초기화
 @st.cache_resource
@@ -44,7 +51,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# UI 스타일 설정
+# 🌟 [Streamlit 버튼 아예 안 씀: 순수 HTML/CSS 텍스트 탭 스타일 (테두리 버그 원천 차단)]
 st.markdown("""
     <style>
     .block-container {
@@ -54,26 +61,67 @@ st.markdown("""
     header[data-testid="stHeader"] {
         height: 2rem !important;
     }
-    div[data-testid="stTabs"] {
-        margin-top: 12px !important;
+
+    /* 탭 전체 바 컨테이너 */
+    .pure-html-tabs {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-top: 20px !important;
+        margin-bottom: 0px !important;
     }
-    [data-testid="stTab"] {
-        height: 55px !important;
-        border-radius: 8px 8px 0px 0px !important;
-    }
-    [data-testid="stTab"] [data-testid="stMarkdownContainer"] p {
+
+    /* 순수 텍스트 탭 링크 기본 스타일 (비활성) */
+    .pure-html-tabs a {
         font-size: 18px !important;
-        color: #495057 !important;
-        margin: 0 !important;
+        font-weight: 500 !important;
+        color: #6c757d !important;
+        text-decoration: none !important;
+        padding: 4px 2px 10px 2px !important;
+        display: inline-block;
     }
-    [data-testid="stTab"][aria-selected="true"] [data-testid="stMarkdownContainer"] p {
+
+    .pure-html-tabs a:hover {
+        color: #5ac451 !important;
+    }
+
+    /* 현재 활성화된 순수 텍스트 탭 스타일 (초록색 굵은 글씨 + 하단 인디케이터 밑줄) */
+    .pure-html-tabs a.is-active {
         font-size: 20px !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
+        color: #5ac451 !important;
+        border-bottom: 4px solid #5ac451 !important;
+        padding-bottom: 12px !important;
+        margin-bottom: 0px;
+        position: relative;   /* 👈 추가 */
+        top: 3px;             /* 👈 활성화된 탭만 아래로 이동 */
+        z-index: 2;
+    }
+
+    /* 화면 좌우 100%를 채우는 구분선 */
+    .full-width-divider {
+        width: 100%;
+        border-bottom: 1px solid #d6d6d9;
+        margin-top: 0px;
+        margin-bottom: 12px;
+    }
+
+    /* 🌙 다크모드 대응 설정 */
+    @media (prefers-color-scheme: dark) {
+        .pure-html-tabs a {
+            color: #adb5bd !important;
+        }
+        .pure-html-tabs a:hover {
+            color: #5ac451 !important;
+        }
+        .full-width-divider {
+            border-bottom: 1px solid #343a40 !important;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# 🌟 로고 이미지 링크 (어떤 탭에 있든 최상단에서 DOM으로 동작)
+# 로고 이미지 링크
 light_logo_url = "https://oqppdobtnpoyqpruyjba.supabase.co/storage/v1/object/public/tree-images/light_logo.png"
 dark_logo_url = "https://oqppdobtnpoyqpruyjba.supabase.co/storage/v1/object/public/tree-images/dark_logo.png"
 
@@ -109,23 +157,43 @@ if "latest_report" not in st.session_state:
     st.session_state["latest_report"] = None
 if "error_message" not in st.session_state:
     st.session_state["error_message"] = None
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "닥풀 AI"
+if "show_diagnosis_form" not in st.session_state:
+    st.session_state["show_diagnosis_form"] = False
 
-# 메인 탭 및 모듈 로드
+current_page = st.session_state.get("current_page", "닥풀 AI")
+
+# ---------------------------------------------------------
+# 🌟 순수 HTML <a> 태그 기반 탭 바 렌더링 (Streamlit 버튼 아예 안 씀)
+# ---------------------------------------------------------
+pages = ["닥풀 AI", "진단 기록", "식물 지도"]
+
+html_tabs = '<div class="pure-html-tabs">'
+for page_name in pages:
+    is_active = (current_page == page_name)
+    active_class = "is-active" if is_active else ""
+    # 클릭 시 주소창 쿼리 파라미터를 바꾸어 페이지 즉시 이동
+    html_tabs += f'<a href="/?tab={page_name}" target="_self" class="{active_class}">{page_name}</a>'
+html_tabs += '</div>'
+
+st.markdown(html_tabs, unsafe_allow_html=True)
+
+# 탭 바로 아래에 위치하며 화면 좌우 100%를 채우는 구분선
+st.markdown('<div class="full-width-divider"></div>', unsafe_allow_html=True)
+
+# 메인 페이지 렌더링
 try:
     from views.history_view import show_history_page
     from views.map_view import show_map_page
 
-    tab1, tab2, tab3 = st.tabs(["식물 진단", "진단 기록", "식물 지도"])
-
-    with tab1:
+    if current_page == "닥풀 AI":
         show_diagnose_page()
-
-    with tab2:
+    elif current_page == "진단 기록":
         show_history_page()
-
-    with tab3:
+    elif current_page == "식물 지도":
         show_map_page()
 
 except Exception as e:
-    st.error(f"⚠️ 앱 구동 중 오류가 발생했습니다: {e}")
+    st.error(f"페이지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
     st.exception(e)
