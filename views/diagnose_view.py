@@ -100,8 +100,8 @@ def show_diagnose_page():
         st.session_state.get("latest_report") is not None
     )
 
-    if st.session_state.get("current_page") != "식물 진단":
-        st.session_state["current_page"] = "식물 진단"
+    if st.session_state.get("current_page") != "닥풀 AI":
+        st.session_state["current_page"] = "닥풀 AI"
         # 다른 탭에서 넘어온 경우에만 View 1로 리셋 (단, 진단 작업 중이 아니거나 파일을 올린 적이 없을 때만)
         if not is_in_diagnosis_process:
             st.session_state["show_diagnosis_form"] = False
@@ -605,7 +605,7 @@ def show_diagnose_page():
                         has_cached_lat = is_valid(st.session_state.get("cached_lat"))
 
                         if keyword_input_val.strip() and not has_cached_lat:
-                            st.warning("검색 결과에서 식물이 있는 장소를 선택해 주세요.")
+                            #st.warning("검색 결과에서 식물이 있는 장소를 선택해 주세요.")
                             st.stop()  # 진단 시작을 막고 유도함
                         
                         # 위치를 아예 입력 안 했거나, 검색 후 장소를 정상적으로 선택한 경우에만 진단 시작
