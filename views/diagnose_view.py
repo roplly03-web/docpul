@@ -411,58 +411,58 @@ def show_diagnose_page():
                     </p>
                 """, unsafe_allow_html=True)
 
-                # 1. 위치가 이미 확인된 경우 (EXIF 또는 정상 획득)
-                if is_valid(lat) and is_valid(lon) and not st.session_state.get("override_location"):
-                    col1, col2 = st.columns([5, 1])
-                    with col1:
-                        st.success(f"📍 **식물이 있는 곳:** {format_location_display(loc_name, lat, lon)}")
-                    with col2:
-                        if st.button("변경", key="btn_loc_change"):
-                            st.session_state["override_location"] = True
-                            st.session_state.pop("cached_lat", None)
-                            st.session_state.pop("cached_lon", None)
+                # 1. URL 쿼리 파라미터로 GPS 좌표가 전달되어 왔는지 우선 확인
+                query_params = st.query_params
+                if "lat" in query_params and "lon" in query_params:
+                    try:
+                        b_lat = float(query_params["lat"])
+                        b_lon = float(query_params["lon"])
+                        if "cached_lat" not in st.session_state:
+                            st.session_state["cached_lat"] = b_lat
+                            st.session_state["cached_lon"] = b_lon
+                            addr = get_address_from_coords(b_lat, b_lon)
+                            st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
+                            st.query_params.clear()
                             st.rerun()
-                            
-                # 2. 위치가 없고, 수동 모드도 아닐 때: [내 현재 위치 불러오기] 버튼 제공
+                    except Exception:
+                        pass
+
+                # 2. 위치가 없고, 수동 모드가 아닐 때: Streamlit 네이티브 버튼 + 안전한 JS 브리지 활용
                 elif not st.session_state.get("override_location"):
-                    st.info("💡 사진에 위치 정보가 없습니다. 버튼을 눌러 현재 위치를 불러와 주세요.")
+                    st.info("💡 사진에 위치 정보가 없습니다. 버튼을 눌러 정확한 기기 GPS 위치를 가져오세요.")
                     
-                    if "requesting_geo" not in st.session_state:
-                        st.session_state["requesting_geo"] = False
-
-                    if st.button("📍 내 현재 위치 불러오기", type="primary", key="btn_get_browser_geo"):
-                        st.session_state["requesting_geo"] = True
-                        st.rerun()
-
-                    if st.session_state.get("requesting_geo"):
-                        with st.spinner("🛰️ GPS 신호를 확인하는 중... 브라우저의 위치 권한 팝업을 허용해 주세요."):
-                            geo_result = get_geolocation()
-                            
-                            if geo_result and isinstance(geo_result, dict) and "coords" in geo_result:
-                                coords = geo_result["coords"]
-                                b_lat = coords.get("latitude")
-                                b_lon = coords.get("longitude")
-                                
-                                if b_lat and b_lon:
-                                    st.session_state["cached_lat"] = float(b_lat)
-                                    st.session_state["cached_lon"] = float(b_lon)
-                                    addr = get_address_from_coords(b_lat, b_lon)
-                                    st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
-                                    st.session_state["requesting_geo"] = False
-                                    st.success("✅ 위치 획득 성공!")
-                                    time.sleep(0.5)
-                                    st.rerun()
-                            elif geo_result is not None:
-                                st.session_state["requesting_geo"] = False
-                                st.warning("⚠️ 위치 정보를 가져오지 못했거나 권한이 거부되었습니다.")
+                    # 배포 환경에서도 확실하게 동작하는 Streamlit 네이티브 버튼
+                    if st.button("📍 기기 GPS 현재 위치 가져오기", type="primary", key="btn_get_browser_geo_native"):
+                        # Streamlit 프론트엔드 레벨에서 브라우저 geolocation을 호출하는 안전한 스크립트 주입
+                        geo_trigger_js = """
+                        <script>
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(
+                                function(position) {
+                                    const lat = position.coords.latitude;
+                                    const lon = position.coords.longitude;
+                                    // 현재 페이지 주소에 좌표를 붙여서 리로드 (부모창 탈출 및 중첩 방지)
+                                    const targetUrl = window.location.pathname + "?lat=" + lat + "&lon=" + lon;
+                                    window.location.href = targetUrl;
+                                },
+                                function(error) {
+                                    alert("⚠️ 위치 권한이 거부되었거나 GPS를 사용할 수 없습니다. (설정을 확인해주세요)");
+                                },
+                                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                            );
+                        } else {
+                            alert("❌ 이 브라우저는 위치 정보를 지원하지 않습니다.");
+                        }
+                        </script>
+                        """
+                        components.html(geo_trigger_js, height=0, width=0)
 
                     # 수동 검색 전환 버튼
                     if st.button("수동으로 장소 직접 입력하기", type="secondary", key="btn_switch_manual"):
                         st.session_state["override_location"] = True
-                        st.session_state["requesting_geo"] = False
                         st.rerun()
 
-                # 3. [최후의 보루] 수동 검색창 노출
+                # 3. [최후의 보루] 수동 검색창 노출 (위치 정보를 도저히 가져올 수 없을 때만)
                 if st.session_state.get("override_location"):
                     st.warning("⚠️ **현재 위치를 가져올 수 없으니 정밀 진단을 위해 식물 위치를 지정해 주세요.**")
                     keyword_input = st.text_input(
