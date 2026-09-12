@@ -354,8 +354,10 @@ def show_diagnose_page():
                 st.error(f"❌ 이미지를 읽는 중 오류가 발생했습니다: {e}")
                 return
 
+            import math
+
             # ---------------------------------------------------------
-            # 🌟 다중 방어선 기반 위치 자동 수집 로직 (1차: EXIF -> 2차: 브라우저/IP -> 3차: 수동)
+            # 🌟 [완벽 고정형] 다중 방어선 기반 위치 자동 수집 및 검증 로직
             # ---------------------------------------------------------
             lat, lon = None, None
             selected_loc_name = ""
@@ -363,63 +365,86 @@ def show_diagnose_page():
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
-            has_valid_cache = (
-                st.session_state.get("cached_lat") is not None 
-                and str(st.session_state.get("cached_lat")).lower() != "nan"
-            )
+            # 현재 업로드된 파일 이름 확인 (파일이 바뀌면 위치 캐시를 초기화하기 위함)
+            current_file_name = uploaded_file.name if uploaded_file else "no_file"
+            last_file_name = st.session_state.get("last_file_name", "")
 
-            # 캐시가 없고, 사용자가 명시적으로 '바꾸기'를 누른 상태가 아니라면 자동 감지 수행
+            if current_file_name != last_file_name:
+                # 새 사진을 올렸다면 이전 위치 캐시를 깨끗하게 비움
+                st.session_state["last_file_name"] = current_file_name
+                st.session_state.pop("cached_lat", None)
+                st.session_state.pop("cached_lon", None)
+                st.session_state.pop("cached_loc_name", None)
+                st.session_state.pop("override_location", None)
+
+            # 유효한 캐시가 있는지 확인하는 함수형 검증
+            def is_valid_coord(val):
+                try:
+                    f = float(val)
+                    return not math.isnan(f) and not math.isinf(f)
+                except (TypeError, ValueError):
+                    return False
+
+            cached_lat_val = st.session_state.get("cached_lat")
+            cached_lon_val = st.session_state.get("cached_lon")
+            has_valid_cache = is_valid_coord(cached_lat_val) and is_valid_coord(cached_lon_val)
+
+            # 캐시가 없고, 사용자가 수동 지정을 누르지 않은 경우에만 딱 한 번 위치 탐색 수행
             if not has_valid_cache and not st.session_state.get("override_location"):
                 photo_lat, photo_lon = None, None
                 
-                # [1차 시도] 사진 내부 EXIF GPS 추출 (PC 또는 EXIF가 보존된 일부 환경)
+                # [1차] 사진 EXIF GPS 추출 시도
                 try:
                     photo_lat, photo_lon = extract_gps_from_image(image)
                 except Exception:
                     pass
 
-                if photo_lat and photo_lon:
-                    lat, lon = photo_lat, photo_lon
+                if is_valid_coord(photo_lat) and is_valid_coord(photo_lon):
+                    lat, lon = float(photo_lat), float(photo_lon)
 
-                # [2차 시도] 모바일 브라우저 업로드로 사진 EXIF가 날아간 경우 -> 브라우저 실시간 위치(GPS) 획득 시도
-                if not lat or not lon:
+                # [2차] 모바일/PC 브라우저 위치 획득 시도
+                if not is_valid_coord(lat) or not is_valid_coord(lon):
                     try:
                         browser_geo = get_geolocation()
                         if browser_geo and isinstance(browser_geo, dict) and "coords" in browser_geo:
-                            lat = browser_geo["coords"].get("latitude")
-                            lon = browser_geo["coords"].get("longitude")
+                            b_lat = browser_geo["coords"].get("latitude")
+                            b_lon = browser_geo["coords"].get("longitude")
+                            if is_valid_coord(b_lat) and is_valid_coord(b_lon):
+                                lat, lon = float(b_lat), float(b_lon)
                     except Exception:
                         pass
 
-                # [3차 시도] 브라우저 GPS도 가져오지 못한 경우 -> IP 기반 네트워크 위치 추적
-                if not lat or not lon:
+                # [3차] IP 위치 (단, 매번 흔들리는 것을 방지하기 위해 세션에 저장되거나 실패 시 안정적인 서울 중심 좌표 기본값 사용)
+                if not is_valid_coord(lat) or not is_valid_coord(lon):
                     try:
                         ip_fallback = get_location_by_ip()
-                        if ip_fallback and ip_fallback.get("latitude") and ip_fallback.get("longitude"):
-                            lat = ip_fallback["latitude"]
-                            lon = ip_fallback["longitude"]
+                        if ip_fallback and is_valid_coord(ip_fallback.get("latitude")) and is_valid_coord(ip_fallback.get("longitude")):
+                            lat = float(ip_fallback["latitude"])
+                            lon = float(ip_fallback["longitude"])
                     except Exception:
                         pass
 
-                # 좌표를 확보한 경우 주소 텍스트 변환 시도 (변환 실패해도 절대 멈추지 않고 좌표값으로 방어)
-                if lat and lon:
+                # [최후의 안정망] 모든 방법이 실패하거나 nan이 반환될 경우, 흔들리지 않는 안정적인 기본 좌표(서울 시청 기준) 지정
+                if not is_valid_coord(lat) or not is_valid_coord(lon):
+                    lat, lon = 37.5665, 126.9780
+                    selected_loc_name = "대한민국 서울 (기본 위치)"
+                else:
+                    # 좌표가 정상 확보된 경우 주소 변환 시도
                     try:
                         addr = get_address_from_coords(lat, lon)
                         selected_loc_name = addr if addr else f"위치 좌표 ({lat:.4f}, {lon:.4f})"
                     except Exception:
                         selected_loc_name = f"위치 좌표 ({lat:.4f}, {lon:.4f})"
 
-                    # 성공적으로 위치를 캐시에 저장하여 수동창 차단
-                    st.session_state["cached_lat"] = lat
-                    st.session_state["cached_lon"] = lon
-                    st.session_state["cached_loc_name"] = selected_loc_name
-                else:
-                    # [최후의 보루] 1, 2, 3차 자동 방어선이 모두 실패했을 때만 수동 입력 모드(override_location) 활성화
-                    st.session_state["override_location"] = True
+                # 확정된 좌표를 캐시에 영구 저장하여 이후 리렌더링 시 절대 흔들리지 않도록 고정
+                st.session_state["cached_lat"] = lat
+                st.session_state["cached_lon"] = lon
+                st.session_state["cached_loc_name"] = selected_loc_name
             else:
-                lat = st.session_state.get("cached_lat")
-                lon = st.session_state.get("cached_lon")
-                selected_loc_name = st.session_state.get("cached_loc_name", "")
+                # 이미 캐시되었거나 수동 지정 모드인 경우 불러오기
+                lat = float(st.session_state.get("cached_lat", 37.5665))
+                lon = float(st.session_state.get("cached_lon", 126.9780))
+                selected_loc_name = st.session_state.get("cached_loc_name", "대한민국 서울 (기본 위치)")
 
             # ---------------------------------------------------------
             # 위치 정보 표시 및 변경 UI (진단 중이 아니고 리포트가 없을 때)
