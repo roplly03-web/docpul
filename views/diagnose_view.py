@@ -355,7 +355,7 @@ def show_diagnose_page():
                 return
 
             # ---------------------------------------------------------
-            # 🌟 Zero-Click 자동 위치 수집 로직 (강화된 3단계 방어선)
+            # 🌟 다중 방어선 기반 위치 자동 수집 로직 (1차: EXIF -> 2차: 브라우저/IP -> 3차: 수동)
             # ---------------------------------------------------------
             lat, lon = None, None
             selected_loc_name = ""
@@ -372,7 +372,7 @@ def show_diagnose_page():
             if not has_valid_cache and not st.session_state.get("override_location"):
                 photo_lat, photo_lon = None, None
                 
-                # [1단계] 사진 자체의 EXIF GPS 추출 시도
+                # [1차 시도] 사진 내부 EXIF GPS 추출 (PC 또는 EXIF가 보존된 일부 환경)
                 try:
                     photo_lat, photo_lon = extract_gps_from_image(image)
                 except Exception:
@@ -380,34 +380,43 @@ def show_diagnose_page():
 
                 if photo_lat and photo_lon:
                     lat, lon = photo_lat, photo_lon
+
+                # [2차 시도] 모바일 브라우저 업로드로 사진 EXIF가 날아간 경우 -> 브라우저 실시간 위치(GPS) 획득 시도
+                if not lat or not lon:
                     try:
-                        addr = get_address_from_coords(lat, lon)
-                        selected_loc_name = addr if addr else f"{lat:.4f}, {lon:.4f}"
+                        browser_geo = get_geolocation()
+                        if browser_geo and isinstance(browser_geo, dict) and "coords" in browser_geo:
+                            lat = browser_geo["coords"].get("latitude")
+                            lon = browser_geo["coords"].get("longitude")
                     except Exception:
-                        selected_loc_name = f"{lat:.4f}, {lon:.4f}"
-                else:
-                    # [2단계] IP 기반 위치 추적 시도
+                        pass
+
+                # [3차 시도] 브라우저 GPS도 가져오지 못한 경우 -> IP 기반 네트워크 위치 추적
+                if not lat or not lon:
                     try:
                         ip_fallback = get_location_by_ip()
                         if ip_fallback and ip_fallback.get("latitude") and ip_fallback.get("longitude"):
                             lat = ip_fallback["latitude"]
                             lon = ip_fallback["longitude"]
-                            region_city = f"{ip_fallback.get('region', '')} {ip_fallback.get('city', '')}".strip()
-                            selected_loc_name = region_city or "네트워크 기반 위치"
                     except Exception:
                         pass
 
-                # [3단계] 1, 2단계 모두 실패하더라도 절대 수동창으로 튕기지 않도록 기본 위치(서울) 자동 할당
-                if not lat or not lon:
-                    lat, lon = 37.5665, 126.9780
-                    selected_loc_name = "대한민국 서울 (기본 위치)"
+                # 좌표를 확보한 경우 주소 텍스트 변환 시도 (변환 실패해도 절대 멈추지 않고 좌표값으로 방어)
+                if lat and lon:
+                    try:
+                        addr = get_address_from_coords(lat, lon)
+                        selected_loc_name = addr if addr else f"위치 좌표 ({lat:.4f}, {lon:.4f})"
+                    except Exception:
+                        selected_loc_name = f"위치 좌표 ({lat:.4f}, {lon:.4f})"
 
-                # 감지된 위치를 즉시 캐시에 저장하여 수동 입력창이 고개도 못 들게 차단
-                st.session_state["cached_lat"] = lat
-                st.session_state["cached_lon"] = lon
-                st.session_state["cached_loc_name"] = selected_loc_name
+                    # 성공적으로 위치를 캐시에 저장하여 수동창 차단
+                    st.session_state["cached_lat"] = lat
+                    st.session_state["cached_lon"] = lon
+                    st.session_state["cached_loc_name"] = selected_loc_name
+                else:
+                    # [최후의 보루] 1, 2, 3차 자동 방어선이 모두 실패했을 때만 수동 입력 모드(override_location) 활성화
+                    st.session_state["override_location"] = True
             else:
-                # 이미 캐시되었거나 사용자가 수동 지정을 선택한 경우
                 lat = st.session_state.get("cached_lat")
                 lon = st.session_state.get("cached_lon")
                 selected_loc_name = st.session_state.get("cached_loc_name", "")
