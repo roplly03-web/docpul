@@ -21,12 +21,12 @@ except ImportError:
 
 # 쿼리 파라미터 기반 탭 상태 동기화 및 홈(리셋) 처리
 query_tab = st.query_params.get("tab")
-if query_tab in ["닥풀 AI", "진단 기록", "식물 지도"]:
+if query_tab in ["식물 진단", "진단 기록", "식물 지도"]:
     st.session_state["current_page"] = query_tab
 
 if st.query_params.get("reset") == "true":
     clear_diagnosis_state()
-    st.session_state["current_page"] = "닥풀 AI"
+    st.session_state["current_page"] = "식물 진단"
     st.session_state["show_diagnosis_form"] = False
     st.query_params.clear()
 
@@ -158,11 +158,11 @@ if "latest_report" not in st.session_state:
 if "error_message" not in st.session_state:
     st.session_state["error_message"] = None
 if "current_page" not in st.session_state:
-    st.session_state["current_page"] = "닥풀 AI"
+    st.session_state["current_page"] = "식물 진단"
 if "show_diagnosis_form" not in st.session_state:
     st.session_state["show_diagnosis_form"] = False
 
-current_page = st.session_state.get("current_page", "닥풀 AI")
+current_page = st.session_state.get("current_page", "식물 진단")
 
 # ---------------------------------------------------------
 # 🌟 순수 HTML <a> 태그 기반 탭 바 렌더링 (Streamlit 버튼 아예 안 씀)
@@ -187,7 +187,7 @@ try:
     from views.history_view import show_history_page
     from views.map_view import show_map_page
 
-    if current_page == "닥풀 AI":
+    if current_page == "식물 진단":
         show_diagnose_page()
     elif current_page == "진단 기록":
         show_history_page()
