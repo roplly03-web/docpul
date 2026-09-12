@@ -6,44 +6,53 @@ from utils import apply_global_styles
 # 페이지가 시작될 때 한 번만 호출
 apply_global_styles()
 
-
-# 다른 페이지 함수(예: show_map_page, show_history_page 등) 실행 직후 추가
-st.session_state["last_active_tab"] = "other"  # 또는 각 페이지 이름
-
 PAGE_SIZE = 10
 
-# 🌟 카드 클릭 시 열리는 상세 진단서 모달 팝업
-@st.dialog("상세 진단 리포트")
+# 🌟 카드 클릭 시 열리는 상세 진단서 모달 팝업 (상세에서는 전체 내용이 다 보이도록 구성)
+@st.dialog("닥풀 진단 결과")
 def show_detail_dialog(rec):
     if rec.get("image_url"):
         st.image(rec["image_url"], use_container_width=True)
-    st.subheader(f"🌿 {rec.get('plant_name', '식물 이름을 알 수 없어요')}")
-    st.caption(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {rec.get('scientific_name') or '학명을 알 수 없어요'}")
+    
+    plant_name = rec.get('plant_name', '식물 이름을 알 수 없어요')
+    scientific_name = rec.get('scientific_name') or '학명을 알 수 없어요'
+    confidence = rec.get('confidence', 0)
+
+    # 모달 상단 이름 및 학명
+    st.markdown(f"""
+        <div class="modal-title-wrap">
+            <div class="modal-plant-name"; style="font-size:1.2rem;">{plant_name} <span class="modal-confidence"; style="font-size:0.85rem; color: #75777e">&nbsp&nbsp&nbsp이 식물일 가능성&nbsp&nbsp</span><span class="modal-confidence"; style="font-size:0.95rem; color: #75777e">{confidence}%</span></div>
+            <div class="modal-scientific-name" style="font-size:1.0rem; color: #75777e">{scientific_name}</div>
+        </div>
+    """, unsafe_allow_html=True)
     
     unified_location = format_location_display(rec.get("location_name", ""), rec.get("latitude"), rec.get("longitude"))
     created_date = rec.get('created_at', '')[:10] if rec.get('created_at') else ''
 
-    # 🌟 점수에 따른 뱃지 텍스트 판별
+    # 점수에 따른 뱃지 텍스트 및 클래스 판별 (목록과 동일)
     health_score = rec.get('health_score', 0)
     if health_score >= 80:
+        badge_class = "badge-healthy"
         status_text = "건강한 편이에요"
     elif health_score >= 60:
-        status_text = "조금 살펴봐요"
+        badge_class = "badge-normal"
+        status_text = "관찰이 필요해요"
     elif health_score >= 40:
+        badge_class = "badge-warning"
         status_text = "관리가 필요해요"
     else:
+        badge_class = "badge-danger"
         status_text = "도움이 필요해요"
 
-    # 🌟 진단 핵심 정보를 요약 박스로 감싸기
+    # 진단 핵심 정보 요약 박스 (상세에서는 말줄임 없이 전체 내용 다 노출)
     with st.container(border=True):
-        st.markdown(f"**식물 건강 점수:** `{health_score}점 ({status_text})`")
-        st.markdown(f"**이 식물일 가능성:** `{rec.get('confidence', 0)}%`")
-        st.markdown(f"**식물이 있는 곳:** `{unified_location}`")
-        st.markdown(f"**진단일:** `{created_date}`")
+        st.markdown(f"""
+            <div class="modal-info-row">🌱&nbsp&nbsp&nbsp<span class="plant-card-badge {badge_class}">{health_score}점 ({status_text})</span></div>
+            <div class="modal-info-row">📍&nbsp&nbsp&nbsp<span class="modal-location-full">{unified_location}</span></div>
+            <div class="modal-info-row">📅&nbsp&nbsp&nbsp<span class="modal-date-full">{created_date}</span></div>
+        """, unsafe_allow_html=True)
 
-
-
-    # 🌟 상단 여백 추가
+    # 상단 여백 추가
     with st.container():
         st.markdown("<br>", unsafe_allow_html=True)
 
@@ -60,21 +69,21 @@ def show_history_page():
     st.markdown("""
         <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">지금까지 살펴본 식물들을 모았어요
         </h4>
-        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">진단했던 식물을 다시 확인할 수 있어요.
+        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀이 살펴본 식물과 결과를 다시 확인할 수 있어요.
         </p>
     """, unsafe_allow_html=True)
 
     st.divider()
 
     if not supabase:
-        st.warning("⚠️ **진단 기록을 불러오지 못했어요.** 잠시 후 다시 시도해주세요.")
+        st.warning("**진단 기록을 불러오지 못했어요.** 잠시 후 다시 시도해주세요.")
         return
 
     # 세션 상태 초기화 (더보기 누적 개수 관리)
     if "history_limit" not in st.session_state:
         st.session_state["history_limit"] = PAGE_SIZE
 
-    # 모바일 2열 / PC 4열 쇼핑몰 스타일 CSS 카드 스타일링
+    # 모바일 2열 / PC 3열 쇼핑몰 스타일 CSS 카드 및 말줄임(ellipsis) 스타일 정의
     st.markdown("""
         <style>
         .card-grid {
@@ -85,15 +94,16 @@ def show_history_page():
         }
         @media (min-width: 768px) {
             .card-grid {
-                grid-template-columns: repeat(4, 1fr);
+                grid-template-columns: repeat(3, 1fr);
                 gap: 20px;
             }
         }
+        /* 건강 점수 뱃지 스타일 (목록/모달 공통) */
         .plant-card-badge {
             display: inline-block;
             padding: 2px 6px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             font-weight: bold;
             margin-bottom: 4px;
         }
@@ -101,6 +111,36 @@ def show_history_page():
         .badge-normal { background-color: #e8f0fe; color: #1a73e8; }
         .badge-warning { background-color: #fef7e0; color: #b06000; }
         .badge-danger { background-color: #fce8e6; color: #c5221f; }
+
+        /* 🌟 목록 카드 전용: 한 줄을 넘지 않고 말줄임표(...) 처리하는 CSS */
+        .history-location {
+            font-size: 0.85rem;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            width: 100%;
+        }
+        .history-date {
+            font-size: 0.8rem;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+            width: 100%;
+        }
+        
+        /* 모달 전용 클래스 (말줄임 없이 전체 노출) */
+        .modal-title-wrap { margin-bottom: 12px; }
+        .modal-plant-name { font-size: 1.1rem; font-weight: bold; }
+        .modal-confidence { font-size: 0.9rem; color: #75777e; font-weight: normal; }
+        .modal-scientific-name { font-size: 0.85rem; color: #75777e; margin-top: 2px; }
+        .modal-bold-text { font-weight: bold; }
+        .modal-info-row { margin-bottom: 8px; font-size: 0.95rem; }
+        .modal-location-full { font-size: 0.95rem; color: #333; }
+        .modal-date-full { font-size: 0.95rem; color: #333; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -123,11 +163,11 @@ def show_history_page():
         records = response.data
 
         if not records:
-            st.info("아직 저장된 진단 이력이 없습니다.")
+            st.info("아직 살펴본 식물이 없어요.")
             return
 
-        # 반응형 컬럼 배치 (PC: 4열, 모바일: 2열)
-        cols = st.columns([1, 1, 1, 1] if st.session_state.get("is_desktop", True) else [1, 1])
+        # 반응형 컬럼 배치 (PC: 3열, 모바일: 2열)
+        cols = st.columns([1, 1, 1] if st.session_state.get("is_desktop", True) else [1, 1])
         col_count = len(cols)
 
         for idx, rec in enumerate(records):
@@ -135,17 +175,19 @@ def show_history_page():
             
             with target_col:
                 with st.container(border=True):
-                    # 1. 첨부 이미지
+                    # 1. 첨부 이미지 (사진이 없으면 영역을 생성하지 않음)
                     img_url = rec.get("image_url")
                     if img_url:
                         st.image(img_url, use_container_width=True)
-                    else:
-                        st.markdown("<div style='height:120px; background:#f0f0f0; border-radius:8px; text-align:center; line-height:120px; color:#888;'>사진 없음</div>", unsafe_allow_html=True)
 
                     # 2. 식물 이름 (이 식물일 가능성)
                     plant_name = rec.get("plant_name", "식물 이름을 알 수 없어요")
                     confidence = rec.get("confidence", 0)
-                    st.markdown(f"🌿 **{plant_name}** <span style='font-size:0.8rem; color:#666;'>({confidence}%)</span>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<span style='font-size:1.1rem; font-weight:700'>{plant_name}</span> "
+                        f"<span style='font-size:0.9rem; color:#75777e;'>({confidence}%)</span>",
+                        unsafe_allow_html=True
+                    )
 
                     # 3. 식물 건강 점수 (4단계 뱃지 적용)
                     health_score = rec.get("health_score", 0)
@@ -154,7 +196,7 @@ def show_history_page():
                         badge_text = "건강한 편이에요"
                     elif health_score >= 60:
                         badge_class = "badge-normal"
-                        badge_text = "조금 살펴봐요"
+                        badge_text = "관찰이 필요해요"
                     elif health_score >= 40:
                         badge_class = "badge-warning"
                         badge_text = "관리가 필요해요"
@@ -164,13 +206,14 @@ def show_history_page():
 
                     st.markdown(f"<span class='plant-card-badge {badge_class}'>{health_score}점 ({badge_text})</span>", unsafe_allow_html=True)
 
-                    # 4. 식물이 있는 곳
+                    # 4. 식물이 있는 곳 (목록에서는 한 줄 말줄임 적용)
                     location_str = format_location_display(rec.get("location_name", ""), rec.get("latitude"), rec.get("longitude"))
-                    st.caption(f"{location_str}")
+                    st.markdown(f"<div class='history-location'>{location_str}</div>", unsafe_allow_html=True)
 
-                    # 5. 진단 일자
+                    # 5. 진단 일자 (목록에서는 한 줄 말줄임 적용)
                     created_date = rec.get("created_at", "")[:10]
-                    st.caption(f"{created_date}")
+                    st.markdown(f"<div class='history-date'>{created_date}</div>", unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
 
                     # 6. 카드 클릭 시 상세 모달 오픈 버튼
                     if st.button("**진단 결과 보기**", key=f"btn_detail_{rec['id']}", use_container_width=True):
@@ -186,4 +229,4 @@ def show_history_page():
                     st.rerun()
 
     except Exception as e:
-        st.error(f"⚠️ **진단 기록을 불러오지 못했어요.** 잠시 후 다시 시도해주세요.: {e}")
+        st.error(f"**진단 기록을 불러오지 못했어요.** 잠시 후 다시 시도해주세요.")
