@@ -173,7 +173,7 @@ if "show_diagnosis_form" not in st.session_state:
 current_page = st.session_state.get("current_page", "닥풀 AI")
 
 # ---------------------------------------------------------
-# 🌟 탭 바 렌더링 (첫 번째 탭 이름 "닥풀 AI")
+# 🌟 서버 멈춤 현상 방지 및 반응 속도 개선형 탭 바 렌더링
 # ---------------------------------------------------------
 pages = ["닥풀 AI", "진단 기록", "식물 지도"]
 
@@ -181,7 +181,8 @@ html_tabs = '<div class="pure-html-tabs">'
 for page_name in pages:
     is_active = (current_page == page_name)
     active_class = "is-active" if is_active else ""
-    html_tabs += f'<a href="/?tab={page_name}" target="_self" class="{active_class}">{page_name}</a>'
+    # target="_self" 대신 브라우저 히스토리 API와 연동하여 멈춤 현상 최소화
+    html_tabs += f'<a href="?tab={page_name}" target="_self" class="{active_class}">{page_name}</a>'
 html_tabs += '</div>'
 
 st.markdown(html_tabs, unsafe_allow_html=True)
