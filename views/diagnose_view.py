@@ -532,49 +532,6 @@ def show_diagnose_page():
                     # 빈 에러 pass 대신 최소한의 로그나 디버그용 출력 남기기
                     st.toast(f"EXIF 파싱 중 예외 발생: {e}", icon="⚠️")
 
-                # 2차 시도: 단말기(브라우저) GPS 자동 수집 (최초 1회 자동 실행)
-                if not st.session_state.get("geo_tried"):
-                    st.session_state["geo_tried"] = True
-                    geo_result = get_geolocation()
-                    if geo_result and isinstance(geo_result, dict) and "coords" in geo_result:
-                        coords = geo_result["coords"]
-                        b_lat = coords.get("latitude")
-                        b_lon = coords.get("longitude")
-                        if b_lat and b_lon:
-                            st.session_state["cached_lat"] = float(b_lat)
-                            st.session_state["cached_lon"] = float(b_lon)
-                            addr = get_address_from_coords(b_lat, b_lon)
-                            st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
-                            st.rerun()
-
-                # 1, 2차 모두 실패 시 수동 검색 모드로 자연스럽게 진입
-                if not is_valid(st.session_state.get("cached_lat")):
-                    st.session_state["override_location"] = True
-                    st.rerun()
-
-            # ---------------------------------------------------------
-            # 화면 표시 UI (위치 상태와 무관하게 공통 타이틀 우선 노출)
-            # ---------------------------------------------------------
-            if not has_report and not is_diagnosing:
-                st.markdown("---")
-                
-                st.markdown("""
-                    <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;"><b>식물이 있는 곳</b>도 함께 살펴봐요
-                    </h4>
-                    <p style="font-size: 0.95rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400; padding-bottom: 10px;"><b>식물이 있는 곳</b>도 알려주면 <b>더 정확</b>하게 살펴볼 수 있어요.<br>같은 식물도 <b>지역과 계절</b>에 따라 나타나는 <b>이상 증상</b>이 다를 수 있어요.
-                    </p>
-                """, unsafe_allow_html=True)
-
-                # 1. 이미 위치가 지정된 경우 (자동 또는 수동 완료)
-                if is_valid(lat):
-                    st.success(f"📍 식물이 있는 곳: **{selected_loc_name}**")
-                    if st.button("위치 다시 선택하기", type="secondary", key="btn_reset_loc"):
-                        st.session_state.pop("cached_lat", None)
-                        st.session_state.pop("cached_lon", None)
-                        st.session_state.pop("cached_loc_name", None)
-                        st.session_state["override_location"] = True
-                        st.rerun()
-
                 # 2차 시도: 단말기(브라우저) GPS 수집
                 #st.info("사진에서 위치 정보를 찾지 못했어요. 현재 위치를 기반으로 식물 진단 위치를 설정할까요?")
 
