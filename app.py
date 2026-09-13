@@ -11,13 +11,12 @@ import streamlit as st
 from supabase import create_client, Client
 
 # diagnose 모듈 임포트 안전 처리
+# diagnose 모듈 직접 임포트
 try:
     from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
-except ImportError:
-    try:
-        from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
-    except Exception as inner_e:
-        st.error(f"닥풀을 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
+except Exception as e:
+    st.error("diagnose_view 모듈을 불러오는 중 오류가 발생했습니다.")
+    st.exception(e)  # 정확히 어떤 에러로 임포트에 실패했는지 화면에 표출
 
 # 홈(리셋) 쿼리 파라미터 처리
 if st.query_params.get("reset") == "true":
