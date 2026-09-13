@@ -173,18 +173,28 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (문자열/숫자 ID 통합 버전)
+# 안정적인 EXIF GPS 추출 (모바일 유연 파싱 최종 버전)
 # ==========================================
 def convert_to_degrees(value):
     try:
-        if value is None or isinstance(value, (str, bytes, float, int)):
+        if value is None:
             return None
+        if isinstance(value, (str, bytes, float, int)):
+            try:
+                return float(value)
+            except Exception:
+                return None
         if not hasattr(value, "__iter__"):
             return None
 
         val_list = []
         for item in value:
-            if item is None or (isinstance(item, float) and str(item).lower() == 'nan'):
+            if item is None:
+                return None
+            
+            # 문자열 'nan' 이나 빈 값 체크
+            item_str = str(item).strip().lower()
+            if item_str in ['nan', 'none', '', 'inf', '-inf']:
                 return None
                 
             if hasattr(item, "numerator") and hasattr(item, "denominator"):
@@ -196,14 +206,19 @@ def convert_to_degrees(value):
                     return None
                 val_list.append(float(item[0]) / float(item[1]))
             else:
-                val_list.append(float(item))
+                try:
+                    val_list.append(float(item))
+                except Exception:
+                    return None
                 
-        if len(val_list) < 3:
+        if len(val_list) == 0:
             return None
             
+        # 폰에서 데이터 개수가 1개(도) 또는 2개(도, 분)로 들어오는 경우도 방어
         d = val_list[0]
-        m = val_list[1]
-        s = val_list[2]
+        m = val_list[1] if len(val_list) > 1 else 0.0
+        s = val_list[2] if len(val_list) > 2 else 0.0
+        
         return d + (m / 60.0) + (s / 3600.0)
     except Exception:
         return None
@@ -229,7 +244,7 @@ def extract_gps_from_image(image):
         if not gps_info:
             return None, None
 
-        # 문자열 키와 표준 숫자 ID(2: 위도, 1: 위도참조, 4: 경도, 3: 경도참조)를 모두 허용
+        # 문자열 키와 표준 숫자 ID(2: 위도, 1: 위도참조, 4: 경도, 3: 경도참조) 모두 지원
         lat = gps_info.get(2) or gps_info.get("GPSLatitude")
         lat_ref = gps_info.get(1) or gps_info.get("GPSLatitudeRef")
         lon = gps_info.get(4) or gps_info.get("GPSLongitude")
