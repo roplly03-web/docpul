@@ -461,6 +461,14 @@ def show_diagnose_page():
             # ---------------------------------------------------------
             # 자동 위치 수집 단계 (1차: 사진 GPS ➔ 2차: 단말기 GPS)
             # ---------------------------------------------------------
+            #--260913시작
+            st.write("=== GPS 조건 직전 ===")
+            st.write("has_report =", has_report)
+            st.write("is_diagnosing =", is_diagnosing)
+            st.write("lat =", lat)
+            st.write("is_valid(lat) =", is_valid(lat))
+            st.write("override_location =", st.session_state.get("override_location"))
+            #----260913끝
             if not has_report and not is_diagnosing and not is_valid(lat) and not st.session_state.get("override_location"):
                 #----260913시작
                 st.write("GPS 조건 확인")
