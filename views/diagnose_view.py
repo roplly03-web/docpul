@@ -417,10 +417,15 @@ def show_diagnose_page():
                 # EXIF GPS 테스트
                 try:
                     raw_exif = image.getexif()
-
                     st.write("EXIF 개수:", len(raw_exif))
-
                     gps_ifd = raw_exif.get(34853)
+                    #---260913
+                    try:
+                        gps_data = raw_exif.get_ifd(34853)
+                        st.write("GPS IFD 실제 데이터:", gps_data)
+                    except Exception as e:
+                        st.error(f"GPS IFD 확인 오류: {type(e).__name__}: {e}")
+                    #--260913
 
                     if gps_ifd:
                         st.success("GPS 정보가 업로드된 사진에 들어 있습니다.")
