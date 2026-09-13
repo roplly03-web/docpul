@@ -244,52 +244,6 @@ def clean_chinese_characters(text: str) -> str:
     text = re.sub(r'[\u4e00-\u9fff]', '', text)
     return text
 
-def convert_to_degrees(value):
-    try:
-        d = float(value[0])
-        m = float(value[1])
-        s = float(value[2])
-        return d + (m / 60.0) + (s / 3600.0)
-    except Exception:
-        return None
-
-def extract_gps_from_image(image):
-    try:
-        exif_data = image._getexif()
-        if not exif_data:
-            return None, None
-
-        gps_info = {}
-        for tag, value in exif_data.items():
-            decoded = TAGS.get(tag, tag)
-            if decoded == "GPSInfo":
-                for t in value:
-                    sub_tag = GPSTAGS.get(t, t)
-                    gps_info[sub_tag] = value[t]
-
-        if not gps_info:
-            return None, None
-
-        gps_latitude = gps_info.get('GPSLatitude')
-        gps_latitude_ref = gps_info.get('GPSLatitudeRef')
-        gps_longitude = gps_info.get('GPSLongitude')
-        gps_longitude_ref = gps_info.get('GPSLongitudeRef')
-
-        if gps_latitude and gps_latitude_ref and gps_longitude and gps_longitude_ref:
-            lat = convert_to_degrees(gps_latitude)
-            lon = convert_to_degrees(gps_longitude)
-
-            if lat is not None and lon is not None:
-                if gps_latitude_ref != 'N':
-                    lat = -lat
-                if gps_longitude_ref != 'E':
-                    lon = -lon
-                return round(lat, 6), round(lon, 6)
-    except Exception:
-        pass
-
-    return None, None
-
 def save_to_supabase(image_bytes, file_name, sci_name, plant_name, health_score, confidence, lat, lon, loc_name, report, symptoms="", details="", urgent=""):
     if not supabase:
         st.error("❌ Supabase 클라이언트가 연결되지 않았습니다.")
