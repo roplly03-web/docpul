@@ -446,6 +446,10 @@ def show_diagnose_page():
 
             # 파일이 바뀌면 위치 관련 캐시 초기화
             current_file_name = uploaded_file.name if uploaded_file else "no_file"
+            #---260913시작
+            st.write("현재 파일명:", current_file_name)
+            st.write("기존 파일명:", st.session_state.get("last_file_name"))
+            #---260913끝
             if st.session_state.get("last_file_name") != current_file_name:
                 st.session_state["last_file_name"] = current_file_name
                 for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_tried"]:
