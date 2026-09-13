@@ -6,3 +6,4 @@ requests
 supabase
 folium
 streamlit-folium
+exifread
