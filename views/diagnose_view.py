@@ -440,6 +440,17 @@ def show_diagnose_page():
             lat = st.session_state.get("cached_lat")
             lon = st.session_state.get("cached_lon")
             selected_loc_name = st.session_state.get("cached_loc_name", "")
+            
+            #---260913시작
+            # 임시 EXIF GPS 직접 테스트
+            try:
+                test_lat, test_lon = extract_gps_from_image(image)
+                st.write("### EXIF 함수 직접 테스트")
+                st.write("위도:", test_lat)
+                st.write("경도:", test_lon)
+            except Exception as e:
+                st.error(f"EXIF GPS 오류: {type(e).__name__}: {e}")
+                #---260913끝
 
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
