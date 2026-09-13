@@ -461,12 +461,23 @@ def show_diagnose_page():
             # 자동 위치 수집 단계 (1차: 사진 GPS ➔ 2차: 단말기 GPS)
             # ---------------------------------------------------------
             if not has_report and not is_diagnosing and not is_valid(lat) and not st.session_state.get("override_location"):
+                #----260913시작
+                st.write("GPS 조건 확인")
+                st.write("has_report:", has_report)
+                st.write("is_diagnosing:", is_diagnosing)
+                st.write("is_valid(lat):", is_valid(lat))
+                st.write("override_location:", st.session_state.get("override_location"))
+                #----260913끝
                 
                 # 1차 시도: 사진 내부 EXIF GPS 추출
                 try:
+                    #----260913시작
                     st.write("EXIF GPS 추출 함수 실행 직전")
+                    #----260913끝
                     p_lat, p_lon = extract_gps_from_image(image)
+                    #----260913시작
                     st.write("GPS 추출 결과:", p_lat, p_lon)
+                    #----260913끝
                     if is_valid(p_lat) and is_valid(p_lon):
                         st.session_state["cached_lat"] = float(p_lat)
                         st.session_state["cached_lon"] = float(p_lon)
