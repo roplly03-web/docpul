@@ -173,12 +173,22 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (이중 안전장치 적용)
+# 안정적인 EXIF GPS 추출 (nan 및 비정상 데이터 방어)
 # ==========================================
 def convert_to_degrees(value):
     try:
+        # 값이 없거나, 문자열이거나, 순회할 수 없는 단일 값(nan 등)인 경우 차단
+        if value is None or isinstance(value, (str, bytes, float, int)):
+            return None
+        if not hasattr(value, "__iter__"):
+            return None
+
         val_list = []
         for item in value:
+            # nan 체크 (문자열 혹은 float nan)
+            if item is None or (isinstance(item, float) and str(item).lower() == 'nan'):
+                return None
+                
             if hasattr(item, "numerator") and hasattr(item, "denominator"):
                 if item.denominator == 0:
                     return None
@@ -207,14 +217,11 @@ def extract_gps_from_image(image):
             return None, None
 
         gps_info = None
-        
-        # 1차 시도: get_ifd 활용
         try:
             gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
         except Exception:
             pass
 
-        # 2차 시도: 직접 딕셔너리 키(34853 또는 0x8825)로 조회
         if not gps_info:
             for tag_id in [34853, 0x8825]:
                 if tag_id in exif:
@@ -224,7 +231,6 @@ def extract_gps_from_image(image):
         if not gps_info:
             return None, None
 
-        # GPS 태그 이름으로 매핑
         gps = {}
         for key, value in gps_info.items():
             tag_name = ExifTags.GPSTAGS.get(key, key)
@@ -257,7 +263,7 @@ def extract_gps_from_image(image):
 
         return round(lat_val, 6), round(lon_val, 6)
 
-    except Exception as e:
+    except Exception:
         return None, None
         
 # ==========================================
