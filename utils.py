@@ -3,7 +3,7 @@ import time
 import re
 import io
 import requests
-from PIL import Image
+from PIL import Image, ExifTags
 from PIL.ExifTags import TAGS, GPSTAGS
 import streamlit as st
 from google import genai
@@ -186,42 +186,53 @@ def convert_to_degrees(value):
 
 def extract_gps_from_image(image):
     try:
-        exif = image._getexif()
+        exif = image.getexif()
+
         if not exif:
             return None, None
-            
-        gps_info = {}
-        for tag_id, value in exif.items():
-            tag_name = TAGS.get(tag_id, tag_id)
-            if tag_name == "GPSInfo":
-                if isinstance(value, dict):
-                    gps_info = value
-                else:
-                    for t in value:
-                        sub_tag = GPSTAGS.get(t, t)
-                        gps_info[sub_tag] = value[t]
+
+        # GPS 정보 가져오기
+        gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
 
         if not gps_info:
             return None, None
 
-        lat_raw = gps_info.get('GPSLatitude') or gps_info.get(2)
-        lat_ref = gps_info.get('GPSLatitudeRef') or gps_info.get(1)
-        lon_raw = gps_info.get('GPSLongitude') or gps_info.get(4)
-        lon_ref = gps_info.get('GPSLongitudeRef') or gps_info.get(3)
+        # GPS 태그 이름으로 변환
+        gps = {
+            ExifTags.GPSTAGS.get(key, key): value
+            for key, value in gps_info.items()
+        }
 
-        if not lat_raw or not lon_raw:
+        lat = gps.get("GPSLatitude")
+        lat_ref = gps.get("GPSLatitudeRef")
+        lon = gps.get("GPSLongitude")
+        lon_ref = gps.get("GPSLongitudeRef")
+
+        if not all([lat, lat_ref, lon, lon_ref]):
             return None, None
 
-        lat = convert_to_degrees(lat_raw)
-        lon = convert_to_degrees(lon_raw)
+        # 도/분/초 → 십진수
+        lat = convert_to_degrees(lat)
+        lon = convert_to_degrees(lon)
 
         if lat is None or lon is None:
             return None, None
 
-        if lat_ref == 'S': lat = -lat
-        if lon_ref == 'W': lon = -lon
+        # 남위 / 서경 처리
+        if isinstance(lat_ref, bytes):
+            lat_ref = lat_ref.decode(errors="ignore")
+
+        if isinstance(lon_ref, bytes):
+            lon_ref = lon_ref.decode(errors="ignore")
+
+        if str(lat_ref).upper() != "N":
+            lat = -lat
+
+        if str(lon_ref).upper() != "E":
+            lon = -lon
 
         return round(lat, 6), round(lon, 6)
+
     except Exception:
         return None, None
         
