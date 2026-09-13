@@ -173,13 +173,32 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (통합본)
+# 안정적인 EXIF GPS 추출 (통합본 및 안전 파서)
 # ==========================================
 def convert_to_degrees(value):
     try:
-        d = float(value[0])
-        m = float(value[1])
-        s = float(value[2])
+        # Pillow의 Rational 구조 또는 일반 튜플/리스트/숫자형 안전하게 파싱
+        val_list = []
+        for item in value:
+            if hasattr(item, "numerator") and hasattr(item, "denominator"):
+                # Pillow Rational 객체인 경우
+                if item.denominator == 0:
+                    return None
+                val_list.append(float(item.numerator) / float(item.denominator))
+            elif isinstance(item, tuple) and len(item) == 2:
+                # (분자, 분모) 튜플 형태인 경우
+                if item[1] == 0:
+                    return None
+                val_list.append(float(item[0]) / float(item[1]))
+            else:
+                val_list.append(float(item))
+                
+        if len(val_list) < 3:
+            return None
+            
+        d = val_list[0]
+        m = val_list[1]
+        s = val_list[2]
         return d + (m / 60.0) + (s / 3600.0)
     except Exception:
         return None
@@ -187,21 +206,19 @@ def convert_to_degrees(value):
 def extract_gps_from_image(image):
     try:
         exif = image.getexif()
-
         if not exif:
             return None, None
 
-        # GPS 정보 가져오기
+        # GPS 정보 가져오기 (EXIF IFD 34853)
         gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
-
         if not gps_info:
             return None, None
 
-        # GPS 태그 이름으로 변환
-        gps = {
-            ExifTags.GPSTAGS.get(key, key): value
-            for key, value in gps_info.items()
-        }
+        # GPS 태그 이름으로 매핑
+        gps = {}
+        for key, value in gps_info.items():
+            tag_name = ExifTags.GPSTAGS.get(key, key)
+            gps[tag_name] = value
 
         lat = gps.get("GPSLatitude")
         lat_ref = gps.get("GPSLatitudeRef")
@@ -211,27 +228,26 @@ def extract_gps_from_image(image):
         if not all([lat, lat_ref, lon, lon_ref]):
             return None, None
 
-        # 도/분/초 → 십진수
-        lat = convert_to_degrees(lat)
-        lon = convert_to_degrees(lon)
+        # 도/분/초 → 십진수 변환
+        lat_val = convert_to_degrees(lat)
+        lon_val = convert_to_degrees(lon)
 
-        if lat is None or lon is None:
+        if lat_val is None or lon_val is None:
             return None, None
 
-        # 남위 / 서경 처리
+        # 남위(S) / 서경(W) 처리 (bytes인 경우 디코딩)
         if isinstance(lat_ref, bytes):
             lat_ref = lat_ref.decode(errors="ignore")
-
         if isinstance(lon_ref, bytes):
             lon_ref = lon_ref.decode(errors="ignore")
 
         if str(lat_ref).upper() != "N":
-            lat = -lat
+            lat_val = -lat_val
 
         if str(lon_ref).upper() != "E":
-            lon = -lon
+            lon_val = -lon_val
 
-        return round(lat, 6), round(lon, 6)
+        return round(lat_val, 6), round(lon_val, 6)
 
     except Exception:
         return None, None
