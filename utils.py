@@ -173,82 +173,87 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (모바일 유연 파싱 최종 버전)
+# 타입 무관 완벽 방어형 EXIF 추출 함수
 # ==========================================
 def convert_to_degrees(value):
     try:
-        if value is None:
+        if not value or not hasattr(value, "__iter__"):
             return None
-        if isinstance(value, (str, bytes, float, int)):
-            try:
-                return float(value)
-            except Exception:
-                return None
-        if not hasattr(value, "__iter__"):
-            return None
-
+        
         val_list = []
         for item in value:
-            if item is None:
-                return None
-            
-            # 문자열 'nan' 이나 빈 값 체크
-            item_str = str(item).strip().lower()
-            if item_str in ['nan', 'none', '', 'inf', '-inf']:
-                return None
-                
             if hasattr(item, "numerator") and hasattr(item, "denominator"):
                 if item.denominator == 0:
                     return None
                 val_list.append(float(item.numerator) / float(item.denominator))
-            elif isinstance(item, tuple) and len(item) == 2:
+            elif isinstance(item, (list, tuple)) and len(item) == 2:
                 if item[1] == 0:
                     return None
                 val_list.append(float(item[0]) / float(item[1]))
             else:
-                try:
-                    val_list.append(float(item))
-                except Exception:
-                    return None
+                val_list.append(float(item))
                 
-        if len(val_list) == 0:
+        if len(val_list) < 3:
             return None
             
-        # 폰에서 데이터 개수가 1개(도) 또는 2개(도, 분)로 들어오는 경우도 방어
-        d = val_list[0]
-        m = val_list[1] if len(val_list) > 1 else 0.0
-        s = val_list[2] if len(val_list) > 2 else 0.0
-        
-        return d + (m / 60.0) + (s / 3600.0)
+        return val_list[0] + (val_list[1] / 60.0) + (val_list[2] / 3600.0)
     except Exception:
         return None
 
 def extract_gps_from_image(image):
     try:
-        exif = image.getexif()
+        img_obj = None
+        # 1. 이미 PIL Image 객체인 경우
+        if isinstance(image, Image.Image):
+            img_obj = image
+        # 2. 바이트 데이터인 경우
+        elif isinstance(image, bytes):
+            img_obj = Image.open(io.BytesIO(image))
+        # 3. Streamlit UploadedFile 또는 파일 스트림 객체인 경우
+        elif hasattr(image, "read"):
+            try:
+                image.seek(0)
+            except Exception:
+                pass
+            img_bytes = image.read()
+            try:
+                image.seek(0)
+            except Exception:
+                pass
+            img_obj = Image.open(io.BytesIO(img_bytes))
+        # 4. 파일 경로(문자열 등)인 경우
+        else:
+            img_obj = Image.open(image)
+
+        exif = img_obj.getexif()
         if not exif:
             return None, None
 
-        gps_info = None
+        raw_gps = None
         try:
-            gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
+            raw_gps = exif.get_ifd(ExifTags.IFD.GPSInfo)
         except Exception:
             pass
 
-        if not gps_info:
-            for tag_id in [34853, 0x8825]:
-                if tag_id in exif:
-                    gps_info = exif.get(tag_id)
-                    break
+        if not raw_gps and 34853 in exif:
+            raw_gps = exif.get(34853)
 
-        if not gps_info:
+        if not raw_gps:
             return None, None
 
-        # 문자열 키와 표준 숫자 ID(2: 위도, 1: 위도참조, 4: 경도, 3: 경도참조) 모두 지원
-        lat = gps_info.get(2) or gps_info.get("GPSLatitude")
-        lat_ref = gps_info.get(1) or gps_info.get("GPSLatitudeRef")
-        lon = gps_info.get(4) or gps_info.get("GPSLongitude")
-        lon_ref = gps_info.get(3) or gps_info.get("GPSLongitudeRef")
+        # 딕셔너리 안전 변환
+        gps_info = {}
+        for k, v in raw_gps.items():
+            gps_info[str(k)] = v
+            try:
+                gps_info[int(k)] = v
+            except:
+                pass
+
+        lat = gps_info.get(2) or gps_info.get("2") or gps_info.get("GPSLatitude")
+        lat_ref = gps_info.get(1) or gps_info.get("1") or gps_info.get("GPSLatitudeRef")
+        lon = gps_info.get(4) or gps_info.get("4") or gps_info.get("GPSLongitude")
+        lon_ref = gps_info.get(3) or gps_info.get("3") or gps_info.get("GPSLongitudeRef")
 
         if not all([lat, lat_ref, lon, lon_ref]):
             return None, None
@@ -266,13 +271,13 @@ def extract_gps_from_image(image):
 
         if str(lat_ref).upper() != "N":
             lat_val = -lat_val
-
         if str(lon_ref).upper() != "E":
             lon_val = -lon_val
 
         return round(lat_val, 6), round(lon_val, 6)
 
-    except Exception:
+    except Exception as e:
+        print(f"extract_gps_from_image 전체 예외 발생: {e}")
         return None, None
         
 # ==========================================
