@@ -9,6 +9,7 @@ import threading
 from utils import apply_global_styles
 import math
 import streamlit.components.v1 as components
+import exifread
 
 # 페이지가 시작될 때 한 번만 호출
 apply_global_styles()
@@ -412,6 +413,21 @@ def show_diagnose_page():
             # 2. 이미지 표시 및 위치 변수 선언
             try:
                 image = Image.open(uploaded_file)
+                # exifread로 원본 파일 GPS 확인
+            try:
+                uploaded_file.seek(0)
+                exif_tags = exifread.process_file(uploaded_file, details=False)
+
+                st.write("=== exifread GPS 테스트 ===")
+                st.write("GPS 위도:", exif_tags.get("GPS GPSLatitude"))
+                st.write("GPS 위도 방향:", exif_tags.get("GPS GPSLatitudeRef"))
+                st.write("GPS 경도:", exif_tags.get("GPS GPSLongitude"))
+                st.write("GPS 경도 방향:", exif_tags.get("GPS GPSLongitudeRef"))
+
+                uploaded_file.seek(0)
+
+            except Exception as e:
+                st.error(f"exifread 오류: {type(e).__name__}: {e}")
                 st.image(image, use_container_width=True)
                 #-------260913시작
                 # EXIF GPS 테스트
