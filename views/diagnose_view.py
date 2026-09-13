@@ -464,6 +464,7 @@ def show_diagnose_page():
                 
                 # 1차 시도: 사진 내부 EXIF GPS 추출
                 try:
+                    st.write("EXIF GPS 추출 함수 실행 직전")
                     p_lat, p_lon = extract_gps_from_image(image)
                     st.write("GPS 추출 결과:", p_lat, p_lon)
                     if is_valid(p_lat) and is_valid(p_lon):
