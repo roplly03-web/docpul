@@ -12,7 +12,7 @@ from supabase import create_client, Client
 
 # diagnose 모듈 임포트 안전 처리
 try:
-    from diagnose import show_diagnose_page, clear_diagnosis_state
+    from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
 except ImportError:
     try:
         from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
