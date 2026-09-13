@@ -9,6 +9,7 @@ import threading
 from utils import apply_global_styles
 import math
 import streamlit.components.v1 as components
+from streamlit_js_eval import get_geolocation
 
 
 # 페이지가 시작될 때 한 번만 호출
@@ -532,25 +533,62 @@ def show_diagnose_page():
                     # 빈 에러 pass 대신 최소한의 로그나 디버그용 출력 남기기
                     st.toast(f"EXIF 파싱 중 예외 발생: {e}", icon="⚠️")
 
-                # 2차 시도: 단말기(브라우저) GPS 자동 수집 (최초 1회 자동 실행)
-                if not st.session_state.get("geo_tried"):
-                    st.session_state["geo_tried"] = True
-                    geo_result = get_geolocation()
-                    if geo_result and isinstance(geo_result, dict) and "coords" in geo_result:
-                        coords = geo_result["coords"]
-                        b_lat = coords.get("latitude")
-                        b_lon = coords.get("longitude")
-                        if b_lat and b_lon:
-                            st.session_state["cached_lat"] = float(b_lat)
-                            st.session_state["cached_lon"] = float(b_lon)
-                            addr = get_address_from_coords(b_lat, b_lon)
-                            st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({b_lat:.4f}, {b_lon:.4f})"
-                            st.rerun()
+                # 2차 시도: 단말기(브라우저) GPS 수집
+                #st.info("사진에서 위치 정보를 찾지 못했어요. 현재 위치를 기반으로 식물 진단 위치를 설정할까요?")
 
-                # 1, 2차 모두 실패 시 수동 검색 모드로 자연스럽게 진입
-                if not is_valid(st.session_state.get("cached_lat")):
-                    st.session_state["override_location"] = True
-                    st.rerun()
+                # 세션 상태 초기화
+                if "geo_step_state" not in st.session_state:
+                    st.session_state["geo_step_state"] = "ready"  # ready, requesting, done
+
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    if st.button("📍 내 현재 위치 가져오기", key="btn_fetch_geo_real"):
+                        st.session_state["geo_step_state"] = "requesting"
+                        st.rerun()
+
+                with col2:
+                    if st.button("직접 장소 검색하기", key="btn_skip_to_manual"):
+                        st.session_state["override_location"] = True
+                        st.session_state["geo_step_state"] = "ready"
+                        st.rerun()
+
+                # '위치 가져오기' 버튼을 눌렀을 때만 진입하는 구역
+                if st.session_state["geo_step_state"] == "requesting":
+                    # streamlit-js-eval 호출 (결과를 기다리는 동안 None 리턴됨)
+                    loc_data = get_geolocation()
+                    
+                    if loc_data and isinstance(loc_data, dict) and "coords" in loc_data:
+                        coords = loc_data["coords"]
+                        lat = coords.get("latitude")
+                        lon = coords.get("longitude")
+                        
+                        if lat and lon:
+                            st.session_state["cached_lat"] = float(lat)
+                            st.session_state["cached_lon"] = float(lon)
+                            
+                            try:
+                                addr = get_address_from_coords(lat, lon)
+                                st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({lat:.4f}, {lon:.4f})"
+                            except Exception:
+                                st.session_state["cached_loc_name"] = f"좌표 ({lat:.4f}, {lon:.4f})"
+                            
+                            st.session_state["geo_step_state"] = "done"
+                            st.success("✨ 위치 획득 성공!")
+                            st.rerun()
+                    else:
+                        # 값이 아직 안 왔거나(None) 대기 중일 때 에러 대신 부드러운 안내와 선택지 제공
+                        st.info("브라우저 위치 팝업이 뜨면 **허용**을 눌러주세요. (위치를 잡는 동안 잠시 기다려 주세요)")
+                        
+                        col_r1, col_r2 = st.columns(2)
+                        with col_r1:
+                            if st.button("🔄 다시 시도", key="btn_geo_retry_fixed"):
+                                st.rerun()
+                        with col_r2:
+                            if st.button("✋ 직접 수동 입력", key="btn_geo_manual_fixed"):
+                                st.session_state["override_location"] = True
+                                st.session_state["geo_step_state"] = "ready"
+                                st.rerun()
 
             # ---------------------------------------------------------
             # 화면 표시 UI (위치 상태와 무관하게 공통 타이틀 우선 노출)
