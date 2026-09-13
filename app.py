@@ -19,11 +19,7 @@ except ImportError:
     except Exception as inner_e:
         st.error(f"닥풀을 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
 
-# 쿼리 파라미터 기반 탭 상태 동기화 및 홈(리셋) 처리
-query_tab = st.query_params.get("tab")
-if query_tab in ["닥풀 AI", "진단 기록", "식물 지도"]:
-    st.session_state["current_page"] = query_tab
-
+# 홈(리셋) 쿼리 파라미터 처리
 if st.query_params.get("reset") == "true":
     clear_diagnosis_state()
     st.session_state["current_page"] = "닥풀 AI"
@@ -51,7 +47,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 🌟 [순수 HTML/CSS 탭 스타일 및 레이어 정렬]
+# 🌟 [st.radio를 순수 텍스트 탭으로 완벽 변환하는 커스텀 CSS]
 st.markdown("""
     <style>
     .block-container {
@@ -62,33 +58,33 @@ st.markdown("""
         height: 2rem !important;
     }
 
-    /* 탭 전체 바 컨테이너 */
-    .pure-html-tabs {
-        display: flex;
-        gap: 20px;
-        align-items: center;
+    /* st.radio 전체를 가로 탭 형태로 정렬 및 불필요한 여백 제거 */
+    div[data-testid="stRadio"] > div {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 20px !important;
+        align-items: center !important;
         margin-top: 20px !important;
         margin-bottom: 0px !important;
     }
 
-    /* 순수 텍스트 탭 링크 기본 스타일 (비활성) */
-    .pure-html-tabs a {
+    /* radio 라벨(텍스트) 기본 스타일 (비활성 탭) */
+    div[data-testid="stRadio"] label {
         font-size: 18px !important;
         font-weight: 500 !important;
         color: #6c757d !important;
-        text-decoration: none !important;
+        cursor: pointer !important;
         padding: 4px 2px 10px 2px !important;
-        display: inline-block;
-        position: relative;
-        z-index: 1;
+        background-color: transparent !important;
+        border: none !important;
     }
 
-    .pure-html-tabs a:hover {
+    div[data-testid="stRadio"] label:hover {
         color: #5ac451 !important;
     }
 
-    /* 현재 활성화된 순수 텍스트 탭 스타일 */
-    .pure-html-tabs a.is-active {
+    /* 선택된 탭 텍스트 스타일 (활성 탭: 초록색 굵은 글씨) */
+    div[data-testid="stRadio"] label[data-checked="true"] {
         font-size: 18px !important;
         font-weight: 700 !important;
         color: #5ac451 !important;
@@ -98,6 +94,14 @@ st.markdown("""
         position: relative;
         top: 2px;
         z-index: 2;
+    }
+
+    /* Streamlit 라디오의 동그라미(input)와 불필요한 컨테이너 박스 숨기기 */
+    div[data-testid="stRadio"] input[type="radio"] {
+        display: none !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {
+        display: none !important;
     }
 
     /* 화면 좌우 100%를 채우는 구분선 */
@@ -112,10 +116,10 @@ st.markdown("""
 
     /* 🌙 다크모드 대응 설정 */
     @media (prefers-color-scheme: dark) {
-        .pure-html-tabs a {
+        div[data-testid="stRadio"] label {
             color: #adb5bd !important;
         }
-        .pure-html-tabs a:hover {
+        div[data-testid="stRadio"] label:hover {
             color: #5ac451 !important;
         }
         .full-width-divider {
@@ -169,23 +173,33 @@ if "current_page" not in st.session_state:
     st.session_state["current_page"] = "닥풀 AI"
 if "show_diagnosis_form" not in st.session_state:
     st.session_state["show_diagnosis_form"] = False
-
-current_page = st.session_state.get("current_page", "닥풀 AI")
+    
 
 # ---------------------------------------------------------
-# 🌟 서버 멈춤 현상 방지 및 반응 속도 개선형 탭 바 렌더링
+# 🌟 st.radio 기반 초고속 상태 탭 렌더링
 # ---------------------------------------------------------
 pages = ["닥풀 AI", "진단 기록", "식물 지도"]
 
-html_tabs = '<div class="pure-html-tabs">'
-for page_name in pages:
-    is_active = (current_page == page_name)
-    active_class = "is-active" if is_active else ""
-    # target="_self" 대신 브라우저 히스토리 API와 연동하여 멈춤 현상 최소화
-    html_tabs += f'<a href="?tab={page_name}" target="_self" class="{active_class}">{page_name}</a>'
-html_tabs += '</div>'
+# 현재 세션의 페이지 인덱스 계산
+current_page = st.session_state.get("current_page", "닥풀 AI")
+try:
+    default_index = pages.index(current_page)
+except ValueError:
+    default_index = 0
 
-st.markdown(html_tabs, unsafe_allow_html=True)
+# Streamlit 네이티브라디오로 탭 구현 (라벨 숨김 처리)
+selected_page = st.radio(
+    "navigation",
+    pages,
+    index=default_index,
+    label_visibility="collapsed",
+    key="nav_radio"
+)
+
+# 선택된 탭이 바뀌면 세션 상태에 즉시 반영
+if selected_page != current_page:
+    st.session_state["current_page"] = selected_page
+    st.rerun()
 
 # 탭 바로 아래 구분선
 st.markdown('<div class="full-width-divider"></div>', unsafe_allow_html=True)
