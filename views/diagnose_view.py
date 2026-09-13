@@ -413,6 +413,7 @@ def show_diagnose_page():
             try:
                 image = Image.open(uploaded_file)
                 st.image(image, use_container_width=True)
+                #-------260913
                 # EXIF GPS 테스트
                 try:
                     raw_exif = image.getexif()
@@ -426,6 +427,7 @@ def show_diagnose_page():
                         st.write("GPS 데이터:", gps_ifd)
                     else:
                         st.warning("업로드된 사진에서 GPS 정보를 찾지 못했습니다.")
+                #------260913
 
                 except Exception as e:
                     st.error(f"EXIF 확인 오류: {type(e).__name__}")
@@ -463,6 +465,7 @@ def show_diagnose_page():
                 # 1차 시도: 사진 내부 EXIF GPS 추출
                 try:
                     p_lat, p_lon = extract_gps_from_image(image)
+                    st.write("GPS 추출 결과:", p_lat, p_lon)
                     if is_valid(p_lat) and is_valid(p_lon):
                         st.session_state["cached_lat"] = float(p_lat)
                         st.session_state["cached_lon"] = float(p_lon)
