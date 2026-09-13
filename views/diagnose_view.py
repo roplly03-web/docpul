@@ -434,7 +434,6 @@ def show_diagnose_page():
                         except Exception as e:
                             st.error(f"GPS IFD 확인 오류: {type(e).__name__}: {e}")
 
-                        st.write("여기까지 실행됨")
                     else:
                         st.warning("업로드된 사진에서 GPS 정보를 찾지 못했습니다.")
                 #------260913끝
@@ -450,26 +449,22 @@ def show_diagnose_page():
             lon = st.session_state.get("cached_lon")
             selected_loc_name = st.session_state.get("cached_loc_name", "")
             
-            #---260913시작
             # 임시 EXIF GPS 직접 테스트
-            try:
-                test_lat, test_lon = extract_gps_from_image(image)
-                st.write("### EXIF 함수 직접 테스트")
-                st.write("위도:", test_lat)
-                st.write("경도:", test_lon)
-            except Exception as e:
-                st.error(f"EXIF GPS 오류: {type(e).__name__}: {e}")
-                #---260913끝
+            # try:
+                # test_lat, test_lon = extract_gps_from_image(image)
+                # st.write("### EXIF 함수 직접 테스트")
+                # st.write("위도:", test_lat)
+                # st.write("경도:", test_lon)
+            # except Exception as e:
+                # st.error(f"EXIF GPS 오류: {type(e).__name__}: {e}")
 
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
             # 파일이 바뀌면 위치 관련 캐시 초기화
             current_file_name = uploaded_file.name if uploaded_file else "no_file"
-            #---260913시작
-            st.write("현재 파일명:", current_file_name)
-            st.write("기존 파일명:", st.session_state.get("last_file_name"))
-            #---260913끝
+            # st.write("현재 파일명:", current_file_name)
+            # st.write("기존 파일명:", st.session_state.get("last_file_name"))
             if st.session_state.get("last_file_name") != current_file_name:
                 st.session_state["last_file_name"] = current_file_name
                 for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_tried"]:
@@ -485,14 +480,12 @@ def show_diagnose_page():
             # ---------------------------------------------------------
             # 자동 위치 수집 단계 (1차: 사진 GPS ➔ 2차: 단말기 GPS)
             # ---------------------------------------------------------
-            #--260913시작
-            st.write("=== GPS 조건 직전 ===")
-            st.write("has_report =", has_report)
-            st.write("is_diagnosing =", is_diagnosing)
-            st.write("lat =", lat)
-            st.write("is_valid(lat) =", is_valid(lat))
-            st.write("override_location =", st.session_state.get("override_location"))
-            #----260913끝
+            # st.write("=== GPS 조건 직전 ===")
+            # st.write("has_report =", has_report)
+            # st.write("is_diagnosing =", is_diagnosing)
+            # st.write("lat =", lat)
+            # st.write("is_valid(lat) =", is_valid(lat))
+            # st.write("override_location =", st.session_state.get("override_location"))
             if not has_report and not is_diagnosing and not is_valid(lat) and not st.session_state.get("override_location"):
                 #----260913시작
                 st.write("GPS 조건 확인")
