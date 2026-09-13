@@ -513,7 +513,14 @@ def show_diagnose_page():
                     if is_valid(p_lat) and is_valid(p_lon):
                         st.session_state["cached_lat"] = float(p_lat)
                         st.session_state["cached_lon"] = float(p_lon)
-                        addr = get_address_from_coords(p_lat, p_lon)
+                        
+                        # 주소 변환 중 에러가 나거나 멈추더라도 좌표는 살리도록 분리
+                        addr = None
+                        try:
+                            addr = get_address_from_coords(p_lat, p_lon)
+                        except Exception:
+                            pass
+                            
                         st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({p_lat:.4f}, {p_lon:.4f})"
                         st.rerun()
                 except:
