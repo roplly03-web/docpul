@@ -503,29 +503,34 @@ def show_diagnose_page():
                 
                 # 1차 시도: 사진 내부 EXIF GPS 추출
                 try:
-                    st.write("EXIF GPS 추출 함수 실행 직전")
                     p_lat, p_lon = extract_gps_from_image(image)
-                    st.write("GPS 추출 결과:", p_lat, p_lon)
                     
                     if is_valid(p_lat) and is_valid(p_lon):
-                        # 세션에 명확히 저장
-                        st.session_state["cached_lat"] = float(p_lat)
-                        st.session_state["cached_lon"] = float(p_lon)
+                        current_lat = float(p_lat)
+                        current_lon = float(p_lon)
                         
-                        addr = None
-                        try:
-                            addr = get_address_from_coords(p_lat, p_lon)
-                        except Exception:
-                            pass
+                        # 🌟 세션 값이랑 다를 때만 갱신 및 리런하도록 제어 (무한 루프 방지)
+                        if (st.session_state.get("cached_lat") != current_lat or 
+                            st.session_state.get("cached_lon") != current_lon):
                             
-                        st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({p_lat:.4f}, {p_lon:.4f})"
-                        
-                        # 🌟 [디버깅 추가] 세션에 박힌 걸 화면에 잠깐 띄우고 리런
-                        st.success(f"위치 저장 성공! 위도: {st.session_state['cached_lat']}")
-                        st.rerun()
+                            st.session_state["cached_lat"] = current_lat
+                            st.session_state["cached_lon"] = current_lon
+                            
+                            # 주소 변환은 타임아웃/에러 대비 안전망 유지
+                            addr = None
+                            try:
+                                addr = get_address_from_coords(current_lat, current_lon)
+                            except Exception:
+                                pass
+                                
+                            st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({current_lat:.4f}, {current_lon:.4f})"
+                            
+                            # 값이 실제로 세팅될 때만 리런 수행
+                            st.rerun()
+                            
                 except Exception as e:
-                    st.error(f"GPS 처리 중 예외: {e}")
-                    pass
+                    # 빈 에러 pass 대신 최소한의 로그나 디버그용 출력 남기기
+                    st.toast(f"EXIF 파싱 중 예외 발생: {e}", icon="⚠️")
 
                 # 2차 시도: 단말기(브라우저) GPS 자동 수집 (최초 1회 자동 실행)
                 if not st.session_state.get("geo_tried"):
