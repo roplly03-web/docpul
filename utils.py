@@ -173,20 +173,17 @@ def format_location_display(loc_name: str, lat: float, lon: float) -> str:
     return "위치 정보 없음"
 
 # ==========================================
-# 안정적인 EXIF GPS 추출 (통합본 및 안전 파서)
+# 안정적인 EXIF GPS 추출 (이중 안전장치 적용)
 # ==========================================
 def convert_to_degrees(value):
     try:
-        # Pillow의 Rational 구조 또는 일반 튜플/리스트/숫자형 안전하게 파싱
         val_list = []
         for item in value:
             if hasattr(item, "numerator") and hasattr(item, "denominator"):
-                # Pillow Rational 객체인 경우
                 if item.denominator == 0:
                     return None
                 val_list.append(float(item.numerator) / float(item.denominator))
             elif isinstance(item, tuple) and len(item) == 2:
-                # (분자, 분모) 튜플 형태인 경우
                 if item[1] == 0:
                     return None
                 val_list.append(float(item[0]) / float(item[1]))
@@ -209,8 +206,21 @@ def extract_gps_from_image(image):
         if not exif:
             return None, None
 
-        # GPS 정보 가져오기 (EXIF IFD 34853)
-        gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
+        gps_info = None
+        
+        # 1차 시도: get_ifd 활용
+        try:
+            gps_info = exif.get_ifd(ExifTags.IFD.GPSInfo)
+        except Exception:
+            pass
+
+        # 2차 시도: 직접 딕셔너리 키(34853 또는 0x8825)로 조회
+        if not gps_info:
+            for tag_id in [34853, 0x8825]:
+                if tag_id in exif:
+                    gps_info = exif.get(tag_id)
+                    break
+
         if not gps_info:
             return None, None
 
@@ -228,14 +238,12 @@ def extract_gps_from_image(image):
         if not all([lat, lat_ref, lon, lon_ref]):
             return None, None
 
-        # 도/분/초 → 십진수 변환
         lat_val = convert_to_degrees(lat)
         lon_val = convert_to_degrees(lon)
 
         if lat_val is None or lon_val is None:
             return None, None
 
-        # 남위(S) / 서경(W) 처리 (bytes인 경우 디코딩)
         if isinstance(lat_ref, bytes):
             lat_ref = lat_ref.decode(errors="ignore")
         if isinstance(lon_ref, bytes):
@@ -249,7 +257,7 @@ def extract_gps_from_image(image):
 
         return round(lat_val, 6), round(lon_val, 6)
 
-    except Exception:
+    except Exception as e:
         return None, None
         
 # ==========================================
