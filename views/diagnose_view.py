@@ -503,18 +503,15 @@ def show_diagnose_page():
                 
                 # 1차 시도: 사진 내부 EXIF GPS 추출
                 try:
-                    #----260913시작
                     st.write("EXIF GPS 추출 함수 실행 직전")
-                    #----260913끝
                     p_lat, p_lon = extract_gps_from_image(image)
-                    #----260913시작
                     st.write("GPS 추출 결과:", p_lat, p_lon)
-                    #----260913끝
+                    
                     if is_valid(p_lat) and is_valid(p_lon):
+                        # 세션에 명확히 저장
                         st.session_state["cached_lat"] = float(p_lat)
                         st.session_state["cached_lon"] = float(p_lon)
                         
-                        # 주소 변환 중 에러가 나거나 멈추더라도 좌표는 살리도록 분리
                         addr = None
                         try:
                             addr = get_address_from_coords(p_lat, p_lon)
@@ -522,8 +519,12 @@ def show_diagnose_page():
                             pass
                             
                         st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({p_lat:.4f}, {p_lon:.4f})"
+                        
+                        # 🌟 [디버깅 추가] 세션에 박힌 걸 화면에 잠깐 띄우고 리런
+                        st.success(f"위치 저장 성공! 위도: {st.session_state['cached_lat']}")
                         st.rerun()
-                except:
+                except Exception as e:
+                    st.error(f"GPS 처리 중 예외: {e}")
                     pass
 
                 # 2차 시도: 단말기(브라우저) GPS 자동 수집 (최초 1회 자동 실행)
