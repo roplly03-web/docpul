@@ -282,7 +282,7 @@ def show_intro_page():
     st.markdown("---")
 
     st.markdown("""
-        <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>내 식물이 궁금할 때</b>, 사진을 올려보세요
+        <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>내 식물이 궁금할 때</b>,<br> 사진을 올려보세요
         </h4>
         <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀이 식물 이름부터 현재 상태<br><b>이상 증상이 있다면 원인과 관리 방법까지</b><br>살펴볼게요.
         </p>
