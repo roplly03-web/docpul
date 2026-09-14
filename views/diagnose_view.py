@@ -249,15 +249,14 @@ def show_diagnose_page():
         return
 
     # ---------------------------------------------------------
-    # 백그라운드 위치 수집 및 자동 수동 전환 로직 (3회 시도 & IP 폴백)
+    # 백그라운드 위치 수집 및 자동 수동 전환 로직 (단일 키 기반 대기)
     # ---------------------------------------------------------
     if not has_report and not is_diagnosing and st.session_state.get("geo_step_state") == "requesting":
-        try_cnt = st.session_state.get("geo_try_count", 1)
         
-        # 시도 횟수에 따라 component_key를 다르게 부여하여 새로 수집 시도
+        # component_key를 고정하여 브라우저 팝업이 파괴되지 않고 사용자의 응답을 기다리도록 함
         loc = None
         try:
-            loc = get_geolocation(component_key=f"get_geo_eval_try_{try_cnt}")
+            loc = get_geolocation(component_key="get_geo_eval_realtime")
         except Exception:
             pass
 
@@ -280,28 +279,22 @@ def show_diagnose_page():
                 st.session_state["geo_step_state"] = "done"
                 st.rerun()
 
-        # 2. GPS 수집 실패, 거부 또는 3회 시도 초과 시
-        else:
-            # 브라우저 에러 응답이 있거나 3회 시도를 모두 채운 경우
-            if (loc and isinstance(loc, dict) and "error" in loc) or try_cnt >= 3:
-                # IP 대략 위치 Fallback 저장
-                try:
-                    ip_lat, ip_lon, ip_addr = get_location_by_ip()
-                    if is_valid(ip_lat) and is_valid(ip_lon):
-                        st.session_state["cached_lat"] = float(ip_lat)
-                        st.session_state["cached_lon"] = float(ip_lon)
-                        st.session_state["cached_loc_name"] = ip_addr if (ip_addr and "****" not in str(ip_addr)) else f"대략적인 위치 ({float(ip_lat):.2f}, {float(ip_lon):.2f})"
-                except Exception:
-                    pass
+        # 2. GPS 수집 실패 또는 사용자가 거부한 경우 (error 객체 반환)
+        elif loc and isinstance(loc, dict) and "error" in loc:
+            # IP 대략 위치 Fallback 저장
+            try:
+                ip_lat, ip_lon, ip_addr = get_location_by_ip()
+                if is_valid(ip_lat) and is_valid(ip_lon):
+                    st.session_state["cached_lat"] = float(ip_lat)
+                    st.session_state["cached_lon"] = float(ip_lon)
+                    st.session_state["cached_loc_name"] = ip_addr if (ip_addr and "****" not in str(ip_addr)) else f"대략적인 위치 ({float(ip_lat):.2f}, {float(ip_lon):.2f})"
+            except Exception:
+                pass
 
-                st.session_state["geo_step_state"] = "failed"
-                st.session_state["override_location"] = True
-                st.rerun()
-            else:
-                # 아직 응답이 없고 3회 미만인 경우: 1초 대기 후 카운트 증가 및 다시 시도
-                time.sleep(1.0)
-                st.session_state["geo_try_count"] = try_cnt + 1
-                st.rerun()
+            st.session_state["geo_failed_msg"] = "위치를 자동으로 확인하지 못했어요. 대략적인 위치가 설정되었으니 필요 시 아래에서 검색해 주세요."
+            st.session_state["geo_step_state"] = "failed"
+            st.session_state["override_location"] = True
+            st.rerun()
 
     # 3. AI 진단 시작 버튼
     action_container = st.empty()
