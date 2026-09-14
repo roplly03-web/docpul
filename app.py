@@ -19,6 +19,7 @@ from views.map_view import show_map_page
 if st.query_params.get("reset") == "true":
     clear_diagnosis_state()
     st.session_state["show_diagnosis_form"] = False
+    st.session_state["current_page"] = "닥풀 AI"
     st.query_params.clear()
 
 # Supabase 클라이언트 초기화
@@ -139,7 +140,7 @@ st.markdown(
             .dark-logo {{ display: block; }}
         }}
     </style>
-    <div style="margin-top: 16px;">
+    <div style="margin-top: 18px;">
         <a href="/?reset=true" target="_self">
             <img src="{light_logo_url}" class="logo-img light-logo">
             <img src="{dark_logo_url}" class="logo-img dark-logo">
@@ -156,6 +157,8 @@ if "error_message" not in st.session_state:
     st.session_state["error_message"] = None
 if "show_diagnosis_form" not in st.session_state:
     st.session_state["show_diagnosis_form"] = False
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "닥풀 AI"
 
 # ---------------------------------------------------------
 # 상단 탭 라디오 렌더링
@@ -176,12 +179,11 @@ selected_page = st.radio(
     key="nav_radio"
 )
 
-# 탭을 직접 클릭했을 때의 전환 처리
+# 탭 선택 시 라우팅 logic
 if selected_page != current_page:
     st.session_state["current_page"] = selected_page
-    # "닥풀 AI" 탭을 다시 누른 경우, 진단 폼 상태를 리셋하여 소개 페이지로 이동
-    if selected_page == "닥풀 AI":
-        st.session_state["show_diagnosis_form"] = False
+    # 어떤 탭을 누르든 이동 시 진단 모드를 해제하여 항상 깔끔한 기본 탭 화면으로 진입
+    st.session_state["show_diagnosis_form"] = False
     st.rerun()
 
 st.markdown('<div class="full-width-divider"></div>', unsafe_allow_html=True)
@@ -190,11 +192,7 @@ st.markdown('<div class="full-width-divider"></div>', unsafe_allow_html=True)
 # 메인 페이지 분기 라우팅
 # ---------------------------------------------------------
 try:
-    from views.history_view import show_history_page
-    from views.map_view import show_map_page
-
     if current_page == "닥풀 AI":
-        # show_diagnosis_form 상태값에 따른 view1 / view2 분기
         if st.session_state.get("show_diagnosis_form", False):
             show_diagnose_page()
         else:
