@@ -249,14 +249,15 @@ def show_diagnose_page():
         return
 
     # ---------------------------------------------------------
-    # 백그라운드 위치 수집 및 자동 수동 전환 로직 (단일 키 기반 대기)
+    # 백그라운드 위치 수집 및 자동 수동 전환 로직 (배포 환경 팝업 차단 대응)
     # ---------------------------------------------------------
     if not has_report and not is_diagnosing and st.session_state.get("geo_step_state") == "requesting":
+        try_cnt = st.session_state.get("geo_try_count", 1)
         
-        # component_key를 고정하여 브라우저 팝업이 파괴되지 않고 사용자의 응답을 기다리도록 함
         loc = None
         try:
-            loc = get_geolocation(component_key="get_geo_eval_realtime")
+            # 매 시도마다 컴포넌트를 다시 불러와 브라우저 권한 재요청
+            loc = get_geolocation(component_key=f"get_geo_eval_try_{try_cnt}")
         except Exception:
             pass
 
@@ -279,9 +280,9 @@ def show_diagnose_page():
                 st.session_state["geo_step_state"] = "done"
                 st.rerun()
 
-        # 2. GPS 수집 실패 또는 사용자가 거부한 경우 (error 객체 반환)
-        elif loc and isinstance(loc, dict) and "error" in loc:
-            # IP 대략 위치 Fallback 저장
+        # 2. GPS 수집 실패, 브라우저 차단/거부 에러, 또는 3회 시도 초과 시
+        elif (loc and isinstance(loc, dict) and "error" in loc) or try_cnt >= 3:
+            # IP 기반 대략 위치 Fallback 저장
             try:
                 ip_lat, ip_lon, ip_addr = get_location_by_ip()
                 if is_valid(ip_lat) and is_valid(ip_lon):
@@ -291,9 +292,14 @@ def show_diagnose_page():
             except Exception:
                 pass
 
-            st.session_state["geo_failed_msg"] = "위치를 자동으로 확인하지 못했어요. 대략적인 위치가 설정되었으니 필요 시 아래에서 검색해 주세요."
             st.session_state["geo_step_state"] = "failed"
             st.session_state["override_location"] = True
+            st.rerun()
+
+        # 3. 브라우저 응답 대기 중 (1초 후 카운트 올려 재시도)
+        else:
+            time.sleep(1.0)
+            st.session_state["geo_try_count"] = try_cnt + 1
             st.rerun()
 
     # 3. AI 진단 시작 버튼
