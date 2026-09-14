@@ -1,18 +1,45 @@
 import io
+import math
 import re
+import threading
+import time
 from datetime import datetime
 from PIL import Image
 import requests
 import streamlit as st
-import time
-import threading
-from utils import apply_global_styles
-import math
 import streamlit.components.v1 as components
 
+from utils import apply_global_styles
 
 # 페이지가 시작될 때 한 번만 호출
 apply_global_styles()
+
+# Custom HTML5 Geolocation 함수
+def get_geolocation_custom():
+    html_code = """
+    <script>
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const data = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude
+                };
+                window.parent.postMessage({
+                    type: 'streamlit:setComponentValue',
+                    value: data
+                }, '*');
+            },
+            (error) => {
+                console.error(error);
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+    }
+    </script>
+    """
+    return components.html(html_code, height=0)
+    
 
 # 단말기 GPS 수집 모듈 안전 로드
 try:
@@ -21,10 +48,17 @@ except Exception:
     get_geolocation = lambda: None
 
 from utils import (
-    extract_gps_from_image, get_address_from_coords, format_location_display,
-    search_google_places, call_gemini_structured_diagnosis,
-    parse_primary_scientific_name, save_to_supabase, sanitize_and_format_markdown,
-    get_location_by_ip, supabase  
+    apply_global_styles,
+    call_gemini_structured_diagnosis,
+    extract_gps_from_image,
+    format_location_display,
+    get_address_from_coords,
+    get_location_by_ip,
+    parse_primary_scientific_name,
+    sanitize_and_format_markdown,
+    save_to_supabase,
+    search_google_places,
+    supabase,
 )
 
 # DB 조회
@@ -414,34 +448,19 @@ def show_diagnose_page():
             try:
                 image = Image.open(uploaded_file)
                 st.image(image, use_container_width=True)
-                #-------260913시작
-                # EXIF GPS 테스트
+                
+                # ------- EXIF GPS 테스트용 출력 (화면 표시 숨김 처리) -------
                 try:
                     raw_exif = image.getexif()
-                    st.write("EXIF 개수:", len(raw_exif))
-
-                    gps_ifd = raw_exif.get(34853)
-
+                    gps_ifd = raw_exif.get(34853) if raw_exif else None
                     if gps_ifd:
-                        st.success("GPS 정보가 업로드된 사진에 들어 있습니다.")
-                        st.write("GPS 데이터:", gps_ifd)
+                        gps_data = raw_exif.get_ifd(34853)
+                except Exception:
+                    pass
+                # -----------------------------------------------------------
 
-                        # GPS IFD 실제 내용 확인
-                        try:
-                            gps_data = raw_exif.get_ifd(34853)
-                            st.write("GPS IFD 실제 데이터:", gps_data)
-                        except Exception as e:
-                            st.error(f"GPS IFD 확인 오류: {type(e).__name__}: {e}")
-
-                        st.write("여기까지 실행됨")
-                    else:
-                        st.warning("업로드된 사진에서 GPS 정보를 찾지 못했습니다.")
-                #------260913끝
-
-                except Exception as e:
-                    st.error(f"EXIF 확인 오류: {type(e).__name__}")
             except Exception as e:
-                st.error(f"사진을 확인할 수 없어요. 다시 업로드해 주세요.")
+                st.error("사진을 확인할 수 없어요. 다시 업로드해 주세요.")
                 return
 
             # 위치 관련 변수 초기 선언
@@ -449,26 +468,18 @@ def show_diagnose_page():
             lon = st.session_state.get("cached_lon")
             selected_loc_name = st.session_state.get("cached_loc_name", "")
             
-            #---260913시작
-            # 임시 EXIF GPS 직접 테스트
+            # EXIF 함수 추출 검증 (화면 출력 제거)
             try:
                 test_lat, test_lon = extract_gps_from_image(image)
-                st.write("### EXIF 함수 직접 테스트")
-                st.write("위도:", test_lat)
-                st.write("경도:", test_lon)
-            except Exception as e:
-                st.error(f"EXIF GPS 오류: {type(e).__name__}: {e}")
-                #---260913끝
+            except Exception:
+                pass
 
             has_report = bool(st.session_state.get("latest_report"))
             is_diagnosing = st.session_state.get("is_diagnosing", False)
 
             # 파일이 바뀌면 위치 관련 캐시 초기화
             current_file_name = uploaded_file.name if uploaded_file else "no_file"
-            #---260913시작
-            st.write("현재 파일명:", current_file_name)
-            st.write("기존 파일명:", st.session_state.get("last_file_name"))
-            #---260913끝
+            
             if st.session_state.get("last_file_name") != current_file_name:
                 st.session_state["last_file_name"] = current_file_name
                 for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_tried"]:
@@ -484,24 +495,9 @@ def show_diagnose_page():
             # ---------------------------------------------------------
             # 자동 위치 수집 단계 (1차: 사진 GPS ➔ 2차: 단말기 GPS)
             # ---------------------------------------------------------
-            #--260913시작
-            st.write("=== GPS 조건 직전 ===")
-            st.write("has_report =", has_report)
-            st.write("is_diagnosing =", is_diagnosing)
-            st.write("lat =", lat)
-            st.write("is_valid(lat) =", is_valid(lat))
-            st.write("override_location =", st.session_state.get("override_location"))
-            #----260913끝
             if not has_report and not is_diagnosing and not is_valid(lat) and not st.session_state.get("override_location"):
-                #----260913시작
-                st.write("GPS 조건 확인")
-                st.write("has_report:", has_report)
-                st.write("is_diagnosing:", is_diagnosing)
-                st.write("is_valid(lat):", is_valid(lat))
-                st.write("override_location:", st.session_state.get("override_location"))
-                #----260913끝
                 
-                # 1차 시도: 사진 내부 EXIF GPS 추출
+                # 1차 시도: 사진 내부 EXIF GPS 추출-----------------------------------------
                 try:
                     p_lat, p_lon = extract_gps_from_image(image)
                     
@@ -509,14 +505,13 @@ def show_diagnose_page():
                         current_lat = float(p_lat)
                         current_lon = float(p_lon)
                         
-                        # 🌟 세션 값이랑 다를 때만 갱신 및 리런하도록 제어 (무한 루프 방지)
+                        # 세션 값이랑 다를 때만 갱신 및 리런하도록 제어
                         if (st.session_state.get("cached_lat") != current_lat or 
                             st.session_state.get("cached_lon") != current_lon):
                             
                             st.session_state["cached_lat"] = current_lat
                             st.session_state["cached_lon"] = current_lon
                             
-                            # 주소 변환은 타임아웃/에러 대비 안전망 유지
                             addr = None
                             try:
                                 addr = get_address_from_coords(current_lat, current_lon)
@@ -525,16 +520,12 @@ def show_diagnose_page():
                                 
                             st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({current_lat:.4f}, {current_lon:.4f})"
                             
-                            # 값이 실제로 세팅될 때만 리런 수행
                             st.rerun()
                             
                 except Exception as e:
-                    # 빈 에러 pass 대신 최소한의 로그나 디버그용 출력 남기기
-                    st.toast(f"EXIF 파싱 중 예외 발생: {e}", icon="⚠️")
+                    pass
 
-                # 2차 시도: 단말기(브라우저) GPS 수집
-                #st.info("사진에서 위치 정보를 찾지 못했어요. 현재 위치를 기반으로 식물 진단 위치를 설정할까요?")
-
+                # 2차 시도: 단말기(브라우저) GPS 수집-----------------------------------------
                 # 세션 상태 초기화
                 if "geo_step_state" not in st.session_state:
                     st.session_state["geo_step_state"] = "ready"  # ready, requesting, done
@@ -554,40 +545,56 @@ def show_diagnose_page():
 
                 # '위치 가져오기' 버튼을 눌렀을 때만 진입하는 구역
                 if st.session_state["geo_step_state"] == "requesting":
-                    # streamlit-js-eval 호출 (결과를 기다리는 동안 None 리턴됨)
-                    loc_data = get_geolocation()
-                    
-                    if loc_data and isinstance(loc_data, dict) and "coords" in loc_data:
-                        coords = loc_data["coords"]
-                        lat = coords.get("latitude")
-                        lon = coords.get("longitude")
-                        
-                        if lat and lon:
-                            st.session_state["cached_lat"] = float(lat)
-                            st.session_state["cached_lon"] = float(lon)
-                            
+                    st.info("브라우저 위치 팝업이 뜨면 **허용**을 눌러주세요. (위치를 잡는 동안 잠시 기다려 주세요)")
+
+                    # streamlit_js_eval 패키지를 활용한 위치 수집 (리런 루프 방지)
+                    loc = None
+                    try:
+                        loc = get_geolocation(component_key="get_geo_eval")
+                    except Exception as e:
+                        st.caption("위치 서비스를 불러오는 중 오류가 발생했습니다.")
+
+                    # 위치 응답 수신 성공 시 처리
+                    if loc and isinstance(loc, dict) and "coords" in loc:
+                        coords = loc["coords"]
+                        lat_val = coords.get("latitude")
+                        lon_val = coords.get("longitude")
+
+                        if is_valid(lat_val) and is_valid(lon_val):
+                            st.session_state["cached_lat"] = float(lat_val)
+                            st.session_state["cached_lon"] = float(lon_val)
+
                             try:
-                                addr = get_address_from_coords(lat, lon)
-                                st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({lat:.4f}, {lon:.4f})"
+                                addr = get_address_from_coords(lat_val, lon_val)
+                                st.session_state["cached_loc_name"] = addr if addr else f"좌표 ({lat_val:.4f}, {lon_val:.4f})"
                             except Exception:
-                                st.session_state["cached_loc_name"] = f"좌표 ({lat:.4f}, {lon:.4f})"
-                            
+                                st.session_state["cached_loc_name"] = f"좌표 ({lat_val:.4f}, {lon_val:.4f})"
+
                             st.session_state["geo_step_state"] = "done"
                             st.success("✨ 위치 획득 성공!")
                             st.rerun()
-                    else:
-                        # 값이 아직 안 왔거나(None) 대기 중일 때 에러 대신 부드러운 안내와 선택지 제공
-                        st.info("브라우저 위치 팝업이 뜨면 **허용**을 눌러주세요. (위치를 잡는 동안 잠시 기다려 주세요)")
+
+                    # 사용자 수동 조작 및 IP 대체 버튼 제공 (타임아웃 루프 대체)
+                    col_r1, col_r2 = st.columns(2)
+                    with col_r1:
+                        if st.button("🌐 IP 기반 위치 사용", key="btn_use_ip_fallback"):
+                            try:
+                                ip_lat, ip_lon, ip_addr = get_location_by_ip()
+                                if is_valid(ip_lat) and is_valid(ip_lon):
+                                    st.session_state["cached_lat"] = float(ip_lat)
+                                    st.session_state["cached_lon"] = float(ip_lon)
+                                    st.session_state["cached_loc_name"] = ip_addr or "대략적인 현재 위치"
+                                    st.session_state["geo_step_state"] = "done"
+                                    st.rerun()
+                            except Exception:
+                                pass
+
+                    with col_r2:
+                        if st.button("✋ 직접 수동 입력", key="btn_geo_manual_fixed"):
+                            st.session_state["override_location"] = True
+                            st.session_state["geo_step_state"] = "ready"
+                            st.rerun()
                         
-                        col_r1, col_r2 = st.columns(2)
-                        with col_r1:
-                            if st.button("🔄 다시 시도", key="btn_geo_retry_fixed"):
-                                st.rerun()
-                        with col_r2:
-                            if st.button("✋ 직접 수동 입력", key="btn_geo_manual_fixed"):
-                                st.session_state["override_location"] = True
-                                st.session_state["geo_step_state"] = "ready"
-                                st.rerun()
 
             # ---------------------------------------------------------
             # 화면 표시 UI (위치 상태와 무관하게 공통 타이틀 우선 노출)
