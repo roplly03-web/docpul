@@ -4,12 +4,12 @@ from pathlib import Path
 import streamlit as st
 from supabase import create_client, Client
 
-# 1. 프로젝트 최상위 루트 경로를 sys.path 최우선 순위(0번 인덱스)로 강제 등록
+# 1. 최상위 루트 경로 등록
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-# 2. 뷰 모듈 불러오기 (try-except 제거 및 정확한 파일명 지정)
+# 2. 뷰 모듈 불러오기
 from views.intro_view import show_intro_page
 from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
 from views.history_view import show_history_page
@@ -26,11 +26,7 @@ if st.query_params.get("reset") == "true":
 def init_supabase():
     url = st.secrets.get("SUPABASE_URL") or st.secrets.get("supabase", {}).get("SUPABASE_URL")
     key = st.secrets.get("SUPABASE_KEY") or st.secrets.get("supabase", {}).get("SUPABASE_KEY")
-    
-    if not url or not key:
-        return None
-    
-    return create_client(url, key)
+    return create_client(url, key) if url and key else None
 
 supabase = init_supabase()
 
@@ -42,7 +38,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 기본 여백 조절 CSS
+# 커스텀 탭 CSS
 st.markdown("""
     <style>
     .block-container {
@@ -52,10 +48,77 @@ st.markdown("""
     header[data-testid="stHeader"] {
         height: 2rem !important;
     }
+
+    div[data-testid="stRadio"] > div {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 20px !important;
+        align-items: center !important;
+        margin-top: 20px !important;
+        margin-bottom: 0px !important;
+    }
+
+    div[data-testid="stRadio"] label {
+        font-size: 18px !important;
+        font-weight: 500 !important;
+        color: #6c757d !important;
+        cursor: pointer !important;
+        padding: 4px 2px 10px 2px !important;
+        background-color: transparent !important;
+        border: none !important;
+    }
+
+    div[data-testid="stRadio"] label:hover {
+        color: #5ac451 !important;
+    }
+
+    div[data-testid="stRadio"] label[data-checked="true"] {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        color: #5ac451 !important;
+        border-bottom: 3px solid #5ac451 !important;
+        padding-bottom: 10px !important;
+        margin-bottom: -2px !important;
+        position: relative !important;
+        top: 2px !important;
+        z-index: 2 !important;
+    }
+
+    div[data-testid="stRadio"] input[type="radio"] {
+        display: none !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {
+        display: none !important;
+    }
+
+    .full-width-divider {
+        width: 100%;
+        border-bottom: 1px solid #d6d6d9;
+        margin-top: 2px;
+        margin-bottom: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        div[data-testid="stRadio"] label {
+            color: #adb5bd !important;
+        }
+        div[data-testid="stRadio"] label:hover {
+            color: #5ac451 !important;
+        }
+        .full-width-divider {
+            border-bottom: 1px solid #343a40 !important;
+            margin-top: 2px !important;
+            margin-bottom: 1rem !important;
+            position: relative;
+            z-index: 1;
+        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 로고 이미지 및 라이트/다크모드 대응
+# 로고 상단 배치
 light_logo_url = "https://oqppdobtnpoyqpruyjba.supabase.co/storage/v1/object/public/tree-images/light_logo.png"
 dark_logo_url = "https://oqppdobtnpoyqpruyjba.supabase.co/storage/v1/object/public/tree-images/dark_logo.png"
 
@@ -95,19 +158,54 @@ if "show_diagnosis_form" not in st.session_state:
     st.session_state["show_diagnosis_form"] = False
 
 # ---------------------------------------------------------
-# 상단 st.tabs 렌더링 및 페이지 라우팅
+# 상단 탭 라디오 렌더링
 # ---------------------------------------------------------
-tab_intro, tab_history, tab_map = st.tabs(["🌱 닥풀 AI", "📜 진단 기록", "📍 식물 지도"])
+pages = ["닥풀 AI", "진단 기록", "식물 지도"]
+current_page = st.session_state.get("current_page", "닥풀 AI")
 
-with tab_intro:
-    # 소개 화면 내 [진단 시작하기] 버튼 클릭 시 view2 (진단 폼)로 전환
-    if st.session_state.get("show_diagnosis_form", False):
-        show_diagnose_page()
-    else:
-        show_intro_page()
+try:
+    default_index = pages.index(current_page)
+except ValueError:
+    default_index = 0
 
-with tab_history:
-    show_history_page()
+selected_page = st.radio(
+    "navigation",
+    pages,
+    index=default_index,
+    label_visibility="collapsed",
+    key="nav_radio"
+)
 
-with tab_map:
-    show_map_page()
+# 탭을 직접 클릭했을 때의 전환 처리
+if selected_page != current_page:
+    st.session_state["current_page"] = selected_page
+    # "닥풀 AI" 탭을 다시 누른 경우, 진단 폼 상태를 리셋하여 소개 페이지로 이동
+    if selected_page == "닥풀 AI":
+        st.session_state["show_diagnosis_form"] = False
+    st.rerun()
+
+st.markdown('<div class="full-width-divider"></div>', unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# 메인 페이지 분기 라우팅
+# ---------------------------------------------------------
+try:
+    from views.history_view import show_history_page
+    from views.map_view import show_map_page
+
+    if current_page == "닥풀 AI":
+        # show_diagnosis_form 상태값에 따른 view1 / view2 분기
+        if st.session_state.get("show_diagnosis_form", False):
+            show_diagnose_page()
+        else:
+            show_intro_page()
+            
+    elif current_page == "진단 기록":
+        show_history_page()
+        
+    elif current_page == "식물 지도":
+        show_map_page()
+
+except Exception as e:
+    st.error("페이지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
+    st.exception(e)
