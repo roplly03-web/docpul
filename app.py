@@ -7,19 +7,25 @@ from supabase import create_client, Client
 # 현재 app.py 파일이 있는 최상위 폴더 경로를 파이썬 모듈 검색 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# 프로젝트 최상위 경로 추가
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 1. 프로젝트 최상위 루트 경로를 sys.path '최우선 순위(0번 인덱스)'로 강제 삽입
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-# 뷰 모듈 불러오기 (intro_view 추가)
+import streamlit as st
+from supabase import create_client, Client
+
+# 뷰 모듈 불러오기
 try:
     from views.intro_view import show_intro_page
     from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
+    from views.history_view import show_history_page
+    from views.map_view import show_map_page
 except ModuleNotFoundError:
     from views.intro import show_intro_page
     from views.diagnose import show_diagnose_page, clear_diagnosis_state
+    from views.history import show_history_page
+    from views.map import show_map_page
 
 # 홈(리셋) 쿼리 파라미터 처리
 if st.query_params.get("reset") == "true":
