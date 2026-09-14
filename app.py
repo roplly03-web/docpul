@@ -140,7 +140,7 @@ st.markdown(
             .dark-logo {{ display: block; }}
         }}
     </style>
-    <div style="margin-top: 18px;">
+    <div style="margin-top: 22px;">
         <a href="/?reset=true" target="_self">
             <img src="{light_logo_url}" class="logo-img light-logo">
             <img src="{dark_logo_url}" class="logo-img dark-logo">
