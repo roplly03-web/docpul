@@ -1,23 +1,22 @@
 import os
 import sys
 from pathlib import Path
+import streamlit as st
+from supabase import create_client, Client
 
-# 프로젝트 루트 경로 추가
+# 현재 app.py 파일이 있는 최상위 폴더 경로를 파이썬 모듈 검색 경로에 추가
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# 프로젝트 루트 경로 등록
 BASE_DIR = Path(__file__).resolve().parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-import streamlit as st
-from supabase import create_client, Client
-
-# diagnose 모듈 임포트 안전 처리
+# views 폴더 안의 모듈 불러오기 (들여쓰기 및 특수 공백 완전 정리)
 try:
-    from diagnose import show_diagnose_page, clear_diagnosis_state
-except ImportError:
-    try:
-        from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
-    except Exception as inner_e:
-        st.error(f"닥풀을 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
+    from views.diagnose_view import show_diagnose_page, clear_diagnosis_state
+except ModuleNotFoundError:
+    from views.diagnose import show_diagnose_page, clear_diagnosis_state
 
 # 홈(리셋) 쿼리 파라미터 처리
 if st.query_params.get("reset") == "true":
@@ -141,7 +140,7 @@ st.markdown(
     f"""
     <style>
         .logo-img {{
-            width: 250px;
+            width: 200px;
             cursor: pointer;
             display: block;
             margin-bottom: 15px;
@@ -173,7 +172,6 @@ if "current_page" not in st.session_state:
     st.session_state["current_page"] = "닥풀 AI"
 if "show_diagnosis_form" not in st.session_state:
     st.session_state["show_diagnosis_form"] = False
-    
 
 # ---------------------------------------------------------
 # 🌟 st.radio 기반 초고속 상태 탭 렌더링
@@ -187,7 +185,7 @@ try:
 except ValueError:
     default_index = 0
 
-# Streamlit 네이티브라디오로 탭 구현 (라벨 숨김 처리)
+# Streamlit 네이티브 라디오로 탭 구현
 selected_page = st.radio(
     "navigation",
     pages,
@@ -217,5 +215,5 @@ try:
         show_map_page()
 
 except Exception as e:
-    st.error(f"페이지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
+    st.error("페이지를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
     st.exception(e)
