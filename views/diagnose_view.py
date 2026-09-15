@@ -112,7 +112,11 @@ def show_diagnose_page():
     "사진 업로드가 잘 되지 않으면 **한 번 더 시도**해 주세요.",
     type=["jpg", "jpeg", "png", "webp"],
     key=uploader_key
-)
+    )
+    if uploaded_file is None:
+        return
+
+    st.write("사진 업로드 성공")
 
     if uploaded_file is None:
         for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
@@ -120,20 +124,19 @@ def show_diagnose_page():
         return
 
     # 2. 이미지 표시 및 위치 변수 선언
-    try:
-        image = Image.open(uploaded_file)
+    # try:
+        # image = Image.open(uploaded_file)
 
-        # JPEG 원본을 가능한 한 작은 해상도로 디코딩
-        if image.format == "JPEG":
-            image.draft("RGB", (1000, 1000))
+        # if image.format == "JPEG":
+            # image.draft("RGB", (1200, 1200))
 
-        image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+        # image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
-        #st.image(image, use_container_width=True)
+        # st.image(image, use_container_width=True)
 
-    except Exception as e:
-        st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
-        return
+    # except Exception as e:
+        # st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
+        # return
 
     # 위치 관련 변수 초기 선언
     lat = st.session_state.get("cached_lat")
