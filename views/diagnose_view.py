@@ -373,7 +373,7 @@ def show_diagnose_page():
         """, unsafe_allow_html=True)
         
         st.markdown("""
-            <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;">식물을 <b>꼼꼼하게</b> 살펴보고 있어요...
+            <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;">식물을 <b>꼼꼼하게</b> 살펴보고 있어요
             </h4>
             <p style="font-size: 0.9rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400;">사진에서 <b>식물의 이름과 상태</b>를 하나씩 확인하고 있어요.<br><b>잠시만 기다려주세요.</b>
             </p>
@@ -450,7 +450,7 @@ def show_diagnose_page():
                 details_text = details_match.group(1).strip() if details_match else ""
 
                 urgent_match = re.search(r'#+\s*먼저\s*해주세요\s*\n+(.*?)(?=\n+#+|\Z)', ai_raw_result, re.DOTALL)
-                urgent_text = urgent_match.group(1).strip() if urgent_text else ""         
+                urgent_text = urgent_match.group(1).strip() if urgent_match else ""
 
                 try:
                     save_to_supabase(
