@@ -588,7 +588,7 @@ def show_diagnose_page():
                 
                 st.markdown(
                     f"""
-                    <div style="margin-left: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
+                    <div style="margin-left: 16px; margin-top: 10px; margin-bottom: 24px; display: flex; flex-direction: column; gap: 8px;">
                         <div>
                             <b>학명</b>
                             <span style="margin-left: 8px; font-size: 0.9rem; color: #75777e;">
