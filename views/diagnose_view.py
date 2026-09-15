@@ -129,7 +129,7 @@ def show_diagnose_page():
 
         image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
-        st.image(image, use_container_width=True)
+        #st.image(image, use_container_width=True)
 
     except Exception as e:
         st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
