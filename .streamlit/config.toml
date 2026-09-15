@@ -16,5 +16,5 @@ toolbarMode = "minimal" # 또는 "viewer", "off" (off 사용 시 모바일 툴�
 # 상단 헤더 비활성화
 hideTopBar = true
 
-[theme]
-base = "light"
+#[theme]
+#base = "light"
