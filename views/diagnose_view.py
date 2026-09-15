@@ -8,7 +8,23 @@ from PIL import Image
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
+import os
 
+@st.cache_resource
+def camera_component():
+    component_path = os.path.join(
+        os.path.dirname(__file__),
+        "camera_uploader"
+    )
+
+    return components.declare_component(
+        "camera_uploader",
+        path=component_path
+    )
+    
+camera_uploader = camera_component()
+    
 from utils import (
     apply_global_styles,
     call_gemini_structured_diagnosis,
@@ -78,20 +94,26 @@ def show_diagnose_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        camera_file = st.camera_input(
-            "📷 카메라로 찍기",
-            key=f"camera_{st.session_state['uploader_key_idx']}"
+        camera_data = camera_uploader(
+            key=f"camera_{st.session_state['uploader_key_idx']}",
+            default=None
         )
 
     with col2:
         gallery_file = st.file_uploader(
-            "🖼 사진 올리기",
+            "",
             type=["jpg", "jpeg", "png", "webp"],
             key=uploader_key
         )
 
-    # 카메라 또는 파일 중 선택된 사진 사용
-    uploaded_file = camera_file if camera_file is not None else gallery_file
+    # 카메라 사진을 UploadedFile과 비슷하게 변환
+    uploaded_file = gallery_file
+
+    if camera_data is not None:
+        image_bytes = base64.b64decode(camera_data["data"])
+
+        uploaded_file = io.BytesIO(image_bytes)
+        uploaded_file.name = camera_data.get("name", "camera.jpg")
 
     if uploaded_file is None:
         for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
