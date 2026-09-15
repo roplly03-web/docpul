@@ -70,7 +70,7 @@ def get_location_by_ip():
     공인 IP를 기반으로 대략적인 위치 정보(위도, 경도, 도시, 지역)를 조회합니다.
     """
     try:
-        # 무료로 공인 IP 위치를 제공하는 API 활용 (타임아웃 3초 설정)
+        # 공인 IP 위치를 제공하는 API 활용 (타임아웃 3초 설정)
         response = requests.get("https://ipapi.co/json/", timeout=3)
         if response.status_code == 200:
             data = response.json()
@@ -161,16 +161,38 @@ def get_address_from_coords(lat: float, lon: float):
         pass
     return None
 
-def format_location_display(loc_name: str, lat: float, lon: float) -> str:
-    addr = get_address_from_coords(lat, lon) if lat and lon else None
+def format_location_display(loc_name: str, lat: float = None, lon: float = None) -> str:
+    """
+    유저에게 보여줄 위치 텍스트 포맷팅 함수 (공백 분할 방식 - 동/읍/면/도로명까지만 안전 표기)
+    """
+    raw_addr = get_address_from_coords(lat, lon) if (lat and lon) else None
+    target_text = raw_addr or loc_name or ""
+    target_text = target_text.strip()
     
-    if addr:
-        return addr
-    elif loc_name:
-        return loc_name
-    elif lat and lon:
-        return f"{lat:.4f}, {lon:.4f}"
-    return "위치 정보 없음"
+    if not target_text:
+        if lat and lon:
+            return f"{lat:.4f}, {lon:.4f}"
+        return "위치 정보 없음"
+
+    # '대한민국 ' 접두사 제거
+    if target_text.startswith("대한민국 "):
+        target_text = target_text[5:].strip()
+
+    tokens = target_text.split()
+    result_tokens = []
+
+    # 단어(어절) 단위로 검사
+    for token in tokens:
+        result_tokens.append(token)
+        
+        # 특수기호 제거 후 순수 텍스트만 추출해서 끝자리 비교
+        clean_token = re.sub(r'[^\w]', '', token)
+        
+        # ~동, ~동1가, ~리, ~읍, ~면, ~로, ~길 패턴으로 끝나는 단어를 만나면 거기서 종료
+        if re.search(r'(?:[0-9가-힣]+동(?:[0-9]+가)?|[가-힣]+리|[가-힣]+읍|[가-힣]+면|[0-9가-힣]+로|[0-9가-힣]+길)$', clean_token):
+            break
+
+    return " ".join(result_tokens)
 
 # ==========================================
 # 타입 무관 완벽 방어형 EXIF 추출 함수
