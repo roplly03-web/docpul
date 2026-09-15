@@ -68,13 +68,14 @@ def show_map_page():
         score = r.get("health_score", 0)
         status_info = get_local_health_status(score)
         
-        # 지오코딩 API를 다시 부르지 않고, DB에 저장된 location_name만 가공 (속도 10배 이상 향상)
+        # 1. DB에 저장된 location_name과 좌표(lat, lon)를 utils의 format_location_display로 전달
+        # 2. 동/읍/면/도로명까지만 가공된 주소를 가져옴
         raw_loc = r.get("location_name") or ""
+        lat_val = r.get("latitude")
+        lng_val = r.get("longitude")
         
-        # 대한민국 접두사 제거 및 간단 표기
-        if raw_loc.startswith("대한민국 "):
-            raw_loc = raw_loc[5:].strip()
-            
+        formatted_loc = format_location_display(raw_loc, lat_val, lng_val)
+        
         created_date = r.get("created_at", "")[:10] if r.get("created_at") else ""
         
         processed_markers.append({
@@ -82,10 +83,10 @@ def show_map_page():
             "score": score,
             "status_text": status_info["text"],
             "badge_class": status_info["badge_class"],
-            "location": raw_loc or "위치 정보 없음",
+            "location": formatted_loc,  # 🌟 동/읍/면 단위로 정리된 주소 전달
             "created_date": created_date,
-            "lat": r["latitude"],
-            "lng": r["longitude"],
+            "lat": lat_val,
+            "lng": lng_val,
             "image": r.get("image_url", "")
         })
 
