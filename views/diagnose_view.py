@@ -173,7 +173,7 @@ def show_diagnose_page():
                 st.warning(st.session_state.pop("geo_failed_msg"))
 
             keyword_input = st.text_input(
-                "식물이 있는 곳을 찾지 못했어요. **직접 장소를 검색**해 주세요.",
+                "식물이 있는 곳을 찾지 못했어요. **장소를 직접 검색**해 주세요.",
                 placeholder="예: 서울숲, 푸른수목원, 우리집 주소",
                 key="manual_keyword_input"
             )
@@ -235,7 +235,7 @@ def show_diagnose_page():
                     st.session_state["geo_step_state"] = "ready"
                     st.session_state["geo_try_count"] = 0
                     st.rerun()
-
+                    
     # 이미지 압축 처리
     img_bytes = None
     try:
