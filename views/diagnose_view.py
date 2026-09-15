@@ -89,7 +89,10 @@ def show_diagnose_page():
     try:
         image = Image.open(uploaded_file)
 
-        # 화면에 보여줄 이미지도 미리 축소
+        # JPEG 원본을 가능한 한 작은 해상도로 디코딩
+        if image.format == "JPEG":
+            image.draft("RGB", (1600, 1600))
+
         image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
         st.image(image, use_container_width=True)
@@ -247,7 +250,6 @@ def show_diagnose_page():
         img_byte_arr = io.BytesIO()
         if image.mode != "RGB":
             image = image.convert("RGB")
-        image.thumbnail((800, 800), Image.Resampling.LANCZOS)
         image.save(img_byte_arr, format='JPEG', quality=85)
         img_bytes = img_byte_arr.getvalue()
     except Exception as e:
