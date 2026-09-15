@@ -518,8 +518,8 @@ def show_diagnose_page():
 
                 with m1:
                     st.markdown(f"""
-                        <div style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <div style="font-size: 0.85rem; color: #666; font-weight: 400; margin-bottom: 6px;">식물 건강 점수</div>
+                        <div style="border: 1px solid; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="font-size: 0.85rem; color: #75777e; font-weight: 400; margin-bottom: 6px;">식물 건강 점수</div>
                             <div style="font-size: 2.0rem; font-weight: 700; ; margin-bottom: 8px; line-height: 1.2;">{score}점</div>
                             <div style="display: inline-block; background-color: {badge_bg}; color: {badge_fg}; font-size: 0.85rem; font-weight: 500; padding: 3px 10px; border-radius: 12px;">
                                 {status_text}
@@ -530,7 +530,7 @@ def show_diagnose_page():
                 with m2:
                     st.markdown(f"""
                         <div style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; box-sizing: border-box; margin-bottom: 16px;">
-                            <div style="font-size: 0.85rem; color: #666; font-weight: 400; margin-bottom: 6px;">추정 식물</div>
+                            <div style="font-size: 0.85rem; color: #75777e; font-weight: 400; margin-bottom: 6px;">추정 식물</div>
                             <div style="width: 100%; display: flex; align-items: center; justify-content: center; min-height: 2.0rem; margin: 4px 0; line-height: 1.2;">
                                 <span style="font-size: clamp(0.85rem, 3.5cqw + 0.2rem, 1.3rem); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block;">
                                     {rep['plant_name']}
