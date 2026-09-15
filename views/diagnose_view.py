@@ -74,49 +74,24 @@ def show_diagnose_page():
             </p>
         """, unsafe_allow_html=True)
     
-    st.markdown("""
-        <style>
+    # 1. 식물 사진 업로드
+    col1, col2 = st.columns(2)
 
-        /* 업로드 버튼을 감싸는 영역 */
-        [data-testid="stFileUploaderDropzone"] > span {
-            width: 100% !important;
-            display: block !important;
-        }
-        /* 200MB per file • JPG, PNG, WEBP 숨기기 */
-        [data-testid="stFileUploaderDropzoneInstructions"] {
-            display: none !important;
-        }
+    with col1:
+        camera_file = st.camera_input(
+            "📷 카메라로 찍기",
+            key=f"camera_{st.session_state['uploader_key_idx']}"
+        )
 
-        /* 업로드 버튼 */
-        [data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"] {
-            background-color: #5ac451 !important;
-            color: #ffffff !important;
-            border: none !important;
-            border-radius: 50px !important;
-            font-size: 0.95rem !important;
-            font-weight: 600 !important;
-            width: 100% !important;
-            height: 44px !important;
-            padding: 0.55rem 1.2rem !important;
-        }
+    with col2:
+        gallery_file = st.file_uploader(
+            "🖼 사진 올리기",
+            type=["jpg", "jpeg", "png", "webp"],
+            key=uploader_key
+        )
 
-        [data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"]:hover {
-            background-color: #ff4b4b !important;
-            color: #ffffff !important;
-        }
-
-        </style>
-        """, unsafe_allow_html=True)
-    
-    uploaded_file = st.file_uploader(
-    "사진 업로드가 잘 되지 않으면 **한 번 더 시도**해 주세요.",
-    type=["jpg", "jpeg", "png", "webp"],
-    key=uploader_key
-    )
-    if uploaded_file is None:
-        return
-
-    st.write("사진 업로드 성공")
+    # 카메라 또는 파일 중 선택된 사진 사용
+    uploaded_file = camera_file if camera_file is not None else gallery_file
 
     if uploaded_file is None:
         for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
@@ -124,19 +99,19 @@ def show_diagnose_page():
         return
 
     # 2. 이미지 표시 및 위치 변수 선언
-    # try:
-        # image = Image.open(uploaded_file)
+    try:
+        image = Image.open(uploaded_file)
 
-        # if image.format == "JPEG":
-            # image.draft("RGB", (1200, 1200))
+        if image.format == "JPEG":
+            image.draft("RGB", (1200, 1200))
 
-        # image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+        image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
-        # st.image(image, use_container_width=True)
+        st.image(image, use_container_width=True)
 
-    # except Exception as e:
-        # st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
-        # return
+    except Exception as e:
+        st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
+        return
 
     # 위치 관련 변수 초기 선언
     lat = st.session_state.get("cached_lat")
