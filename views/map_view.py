@@ -45,7 +45,7 @@ def show_map_page():
     st.markdown("""
         <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">주변 식물을 지도에서 살펴봐요
         </h4>
-        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀이 살펴본 식물이 어디에 있는지 지도에서 확인할 수 있어요.
+        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀이 살펴본 식물이 어디에 있는지 지도에서 볼 수 있어요.
         </p>
     """, unsafe_allow_html=True)
 
