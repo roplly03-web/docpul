@@ -141,11 +141,9 @@ def show_intro_page():
         </h4>
         <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물 사진을 보여주면 이름부터 궁금하죠.<br>하지만 이상한 부분이 보이면 <b>궁금한 건 따로</b> 있어요.
         </p>
-        <br>
-        <h5 style="text-align: center; line-height: 1.5; margin-top: 0px; font-weight: 400;">
+        <h5 style="text-align: center; line-height: 1.5; font-weight: 400; margin-top: 18px; margin-bottom: 12px;">
         <b>왜</b> 이래요?<br><b>무슨 문제</b>인가요?<br><b>어떻게</b> 해야하나요?
         </h5>
-        <br>
         <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물의 특징, 현재 상태, 이상 증상, 원인, 관리 방법<br><b>사진에서 확인되는 정보</b>를 바탕으로 하나씩 살펴봐요.
         </p>                
     """, unsafe_allow_html=True)
@@ -212,7 +210,7 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">한 번의 진단에서 <b>끝나지 않아요</b>
         </h4>
-        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 16px; font-weight: 400;">닥풀은 식물을 <b>한 번 살펴보고 끝내지 않아요.</b>
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 10px; font-weight: 400;">닥풀은 식물을 <b>한 번 살펴보고 끝내지 않아요.</b>
         </p> 
     """, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
@@ -270,13 +268,11 @@ def show_intro_page():
         </h4>
         <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 0px; font-weight: 400;">지금은 한 그루의 식물을 살펴보지만,<br>진단이 쌓이면 <b>우리 동네의 식물 정보</b>가 됩니다.
         </p> 
-        <br>
-        <h5 style="text-align: center; line-height: 1.6; margin-top: 0px; font-weight: 400;">
+        <h5 style="text-align: center; line-height: 1.6; margin-top: 20px; margin-bottom: 14px; font-weight: 400;">
         우리 동네에는 <b>어떤 식물</b>이 있을까?<br>
         어떤 <b>이상 증상과 병해충</b>이 많이 나타날까?<br>
         <b>계절</b>에 따라 식물은 어떻게 달라질까?
         </h5>
-        <br>
         <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀은 이런 질문에 답할 수 있는<br><b>지역 기반 식물 정보</b>를 만들어가고 있어요.
         </p>                
     """, unsafe_allow_html=True)
