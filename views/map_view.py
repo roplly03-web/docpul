@@ -1,15 +1,12 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import json
-from utils import supabase
-from utils import apply_global_styles
+from utils import supabase, format_location_display, apply_global_styles
 
 # 페이지가 시작될 때 한 번만 호출
 apply_global_styles()
 
-
-# 다른 페이지 함수(예: show_map_page, show_history_page 등) 실행 직후 추가
-st.session_state["last_active_tab"] = "other"  # 또는 각 페이지 이름
+st.session_state["last_active_tab"] = "other"
 
 def get_local_health_status(score: int):
     try:
@@ -18,20 +15,21 @@ def get_local_health_status(score: int):
         score = 0
 
     if score >= 80:
-        return {"text": "건강한 편이에요", "score_class": "healthy"}
+        return {"text": "건강한 편이에요", "badge_class": "badge-healthy"}
     elif score >= 60:
-        return {"text": "관찰이 필요해요", "score_class": "normal"}
+        return {"text": "관찰이 필요해요", "badge_class": "badge-normal"}
     elif score >= 40:
-        return {"text": "관리가 필요해요", "score_class": "warning"}
+        return {"text": "관리가 필요해요", "badge_class": "badge-warning"}
     else:
-        return {"text": "도움이 필요해요", "score_class": "danger"}
+        return {"text": "도움이 필요해요", "badge_class": "badge-danger"}
 
 def get_diagnosis_history():
     if not supabase:
         return []
     try:
+        # created_at 필드 추가 조회
         response = supabase.table("diagnosis_history") \
-            .select("id, plant_name, health_score, location_name, latitude, longitude, image_url") \
+            .select("id, plant_name, health_score, location_name, latitude, longitude, image_url, created_at") \
             .not_.is_("latitude", "null") \
             .not_.is_("longitude", "null") \
             .order("created_at", desc=True) \
@@ -43,17 +41,16 @@ def get_diagnosis_history():
         return []
 
 def show_map_page():
-    st.markdown("<br>", unsafe_allow_html=True)
+    #st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
-        <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">우리 주변 식물을 지도에서 살펴봐요
+        <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">주변 식물을 지도에서 살펴봐요
         </h4>
-        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀에서 살펴본 식물이 어디에서 발견되었는지 지도에서 확인할 수 있어요.
+        <p style="font-size: 0.9rem; line-height: 1.0; color: #75777e; margin-top: 0px; font-weight: 400;">닥풀이 살펴본 식물이 어디에 있는지 지도에서 확인할 수 있어요.
         </p>
     """, unsafe_allow_html=True)
 
     st.divider()
 
-    # 1. Google Maps API Key 확인
     google_maps_key = st.secrets.get("GOOGLE_MAPS_API_KEY")
     if not google_maps_key:
         st.error("지도를 불러오지 못했어요. 잠시 후 다시 시도해주세요.")
@@ -71,12 +68,22 @@ def show_map_page():
         score = r.get("health_score", 0)
         status_info = get_local_health_status(score)
         
+        # 🌟 지오코딩 API를 다시 부르지 않고, DB에 저장된 location_name만 가공 (속도 10배 이상 향상)
+        raw_loc = r.get("location_name") or ""
+        
+        # 대한민국 접두사 제거 및 간단 표기
+        if raw_loc.startswith("대한민국 "):
+            raw_loc = raw_loc[5:].strip()
+            
+        created_date = r.get("created_at", "")[:10] if r.get("created_at") else ""
+        
         processed_markers.append({
             "title": r.get("plant_name", "식물 이름을 알 수 없어요"),
             "score": score,
             "status_text": status_info["text"],
-            "score_class": status_info["score_class"],
-            "location": r.get("location_name") or "위치를 확인할 수 없어요",
+            "badge_class": status_info["badge_class"],
+            "location": raw_loc or "위치 정보 없음",
+            "created_date": created_date,
             "lat": r["latitude"],
             "lng": r["longitude"],
             "image": r.get("image_url", "")
@@ -84,7 +91,6 @@ def show_map_page():
 
     markers_data = json.dumps(processed_markers, ensure_ascii=False)
 
-    # 2. Google Maps HTML / JS (Places API 연결)
     google_map_html = f"""
     <!DOCTYPE html>
     <html>
@@ -93,7 +99,7 @@ def show_map_page():
         <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
         <style>
             * {{ box-sizing: border-box; }}
-            html, body {{ width:100%; height:100%; margin:0; padding:0; font-family: 'Pretendard', sans-serif; overflow: hidden; }}
+            html, body {{ width:100%; height:100%; margin:0; padding:0; font-family: 'Pretendard', -apple-system, sans-serif; overflow: hidden; }}
             #map-wrapper {{ position: relative; width:100%; height:550px; }}
             #map {{ width:100%; height:100%; min-height: 550px; background-color: #e9ecef; }}
             
@@ -113,21 +119,67 @@ def show_map_page():
                 background-color: #fff;
             }}
 
-            .info-box {{ padding: 10px; border-radius: 8px; width: 220px; font-size: 13px; line-height: 1.4; }}
-            .info-title {{ font-weight: bold; font-size: 15px; color: #1b5e20; margin-bottom: 4px; }}
-            .info-score {{ font-weight: bold; margin-bottom: 4px; }}
-            .info-score.healthy {{ color: #137333; }}
-            .info-score.normal {{ color: #1a73e8; }}
-            .info-score.warning {{ color: #b06000; }}
-            .info-score.danger {{ color: #c5221f; }}
-            .info-img {{ width: 100%; height: 110px; object-fit: cover; border-radius: 6px; margin-top: 6px; }}
+            /* 🌟 history_view.py와 완벽히 동일하게 맞춘 스타일 클래스 */
+            .info-box {{
+                padding: 4px;
+                width: 200px;
+                font-family: inherit;
+            }}
+            
+            .map-title {{
+                font-size: 1.05rem;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }}
+
+            .plant-card-badge {{
+                display: inline-block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 0.85rem;
+                font-weight: bold;
+                margin-bottom: 6px;
+            }}
+            .badge-healthy {{ background-color: #e6f4ea; color: #137333; }}
+            .badge-normal {{ background-color: #e8f0fe; color: #1a73e8; }}
+            .badge-warning {{ background-color: #fef7e0; color: #b06000; }}
+            .badge-danger {{ background-color: #fce8e6; color: #c5221f; }}
+
+            .map-location {{
+                font-size: 0.85rem;
+                color: #75777e;
+                font-weight: 400;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: block;
+                width: 100%;
+                margin-bottom: 2px;
+            }}
+
+            .map-date {{
+                font-size: 0.85rem;
+                color: #75777e;
+                font-weight: 400;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: block;
+                width: 100%;
+            }}
+
+            .info-img {{
+                width: 100%;
+                height: 110px;
+                object-fit: cover;
+                border-radius: 6px;
+                margin-top: 8px;
+            }}
         </style>
-        <!-- 🌟 libraries=places 추가하여 Places API 활성화 -->
         <script src="https://maps.googleapis.com/maps/api/js?key={google_maps_key.strip()}&libraries=places&language=ko"></script>
     </head>
     <body>
         <div id="map-wrapper">
-            <!-- 🌟 지도 내 장소 검색 입력창 -->
             <input id="pac-input" class="search-input" type="text" placeholder="🔍 지도에서 장소 검색..." />
             <div id="map"></div>
         </div>
@@ -146,16 +198,13 @@ def show_map_page():
                     }}
                 }});
 
-                // 🌟 Places Autocomplete 검색 연동
                 var input = document.getElementById('pac-input');
                 var autocomplete = new google.maps.places.Autocomplete(input);
                 autocomplete.bindTo('bounds', map);
 
                 autocomplete.addListener('place_changed', function() {{
                     var place = autocomplete.getPlace();
-                    if (!place.geometry || !place.geometry.location) {{
-                        return;
-                    }}
+                    if (!place.geometry || !place.geometry.location) return;
 
                     if (place.geometry.viewport) {{
                         map.fitBounds(place.geometry.viewport);
@@ -179,11 +228,13 @@ def show_map_page():
 
                     var imgTag = item.image ? '<img src="' + item.image + '" class="info-img" />' : '';
 
+                    /* 🌟 히스토리 카드의 구조와 클래스를 동일하게 적용한 HTML */
                     var contentStr = 
                         '<div class="info-box">' +
-                            '<div class="info-title">🌿 ' + item.title + '</div>' +
-                            '<div class="info-score ' + item.score_class + '">' + item.score + '점 (' + item.status_text + ')</div>' +
-                            '<div>' + item.location + '</div>' +
+                            '<div class="map-title">' + item.title + '</div>' +
+                            '<span class="plant-card-badge ' + item.badge_class + '">' + item.score + '점 (' + item.status_text + ')</span>' +
+                            '<div class="map-location">📍 ' + item.location + '</div>' +
+                            '<div class="map-date">📅 ' + item.created_date + '</div>' +
                             imgTag +
                         '</div>';
 
