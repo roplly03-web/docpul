@@ -74,11 +74,45 @@ def show_diagnose_page():
             </p>
         """, unsafe_allow_html=True)
     
+    st.markdown("""
+        <style>
+
+        /* 업로드 버튼을 감싸는 영역 */
+        [data-testid="stFileUploaderDropzone"] > span {
+            width: 100% !important;
+            display: block !important;
+        }
+        /* 200MB per file • JPG, PNG, WEBP 숨기기 */
+        [data-testid="stFileUploaderDropzoneInstructions"] {
+            display: none !important;
+        }
+
+        /* 업로드 버튼 */
+        [data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"] {
+            background-color: #5ac451 !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 50px !important;
+            font-size: 0.95rem !important;
+            font-weight: 600 !important;
+            width: 100% !important;
+            height: 44px !important;
+            padding: 0.55rem 1.2rem !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"]:hover {
+            background-color: #ff4b4b !important;
+            color: #ffffff !important;
+        }
+
+        </style>
+        """, unsafe_allow_html=True)
+    
     uploaded_file = st.file_uploader(
-        "",
-        type=["jpg", "jpeg", "png", "webp"],
-        key=uploader_key
-    )
+    "사진 업로드가 잘 되지 않으면 **한 번 더 시도**해 주세요.",
+    type=["jpg", "jpeg", "png", "webp"],
+    key=uploader_key
+)
 
     if uploaded_file is None:
         for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
