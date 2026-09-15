@@ -88,7 +88,12 @@ def show_diagnose_page():
     # 2. 이미지 표시 및 위치 변수 선언
     try:
         image = Image.open(uploaded_file)
+
+        # 화면에 보여줄 이미지도 미리 축소
+        image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+
         st.image(image, use_container_width=True)
+
     except Exception as e:
         st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
         return
