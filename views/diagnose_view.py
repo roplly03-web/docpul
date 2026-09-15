@@ -102,36 +102,46 @@ def show_diagnose_page():
         }
 
         [data-testid="stFileUploaderDropzone"] [data-testid="stBaseButton-secondary"]:hover {
-            background-color: #ff4b4b !important;
+            background-color: #039f48 !important;
             color: #ffffff !important;
         }
 
         </style>
         """, unsafe_allow_html=True)
     
+    # 1. 식물 사진 업로드
     uploaded_file = st.file_uploader(
-    "사진 업로드가 잘 되지 않으면 **한 번 더 시도**해 주세요.",
-    type=["jpg", "jpeg", "png", "webp"],
-    key=uploader_key
+        "사진 업로드가 잘 되지 않으면 **한 번 더 시도**해 주세요.",
+        type=["jpg", "jpeg", "png", "webp"],
+        key=uploader_key
     )
 
     if uploaded_file is None:
-        for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
+        for k in ["cached_lat", "cached_lon", "cached_loc_name", "search_keyword", "override_location", "latest_report", "manual_keyword_input", "need_place_selection_error", "is_diagnosing", "geo_step_state", "geo_try_count", "geo_failed_msg", "last_file_name"]:
             st.session_state.pop(k, None)
         return
 
-    # 2. 이미지 표시 및 위치 변수 선언
+    # 2. 이미지 메모리 최적화 로드 (카메라 촬영 대응)
     try:
-        image = ImageOps.exif_transpose(Image.open(uploaded_file))
+        # BytesIO로 메모리에서 바로 읽어와 빠르게 1/2~1/4 수준으로 압축 리사이징
+        raw_bytes = uploaded_file.read()
+        image = ImageOps.exif_transpose(Image.open(io.BytesIO(raw_bytes)))
 
-        if image.format == "JPEG":
-            image.draft("RGB", (1200, 1200))
+        if image.mode != "RGB":
+            image = image.convert("RGB")
 
-        image.thumbnail((800, 800), Image.Resampling.LANCZOS)
+        # 메모리 폭발 방지: 최대 해상도를 1024px 수준으로 제한
+        image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
+        # 화면 표시
         st.image(image, use_container_width=True)
 
-    except Exception as e:
+        # AI 전달용 바이너리 미리 세팅 (이후 재변환 제거)
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG', quality=80)  # 용량 대폭 축소 (보통 300KB 이하로 감소)
+        img_bytes = img_byte_arr.getvalue()
+
+    except Exception:
         st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
         return
 
@@ -143,11 +153,11 @@ def show_diagnose_page():
     has_report = bool(st.session_state.get("latest_report"))
     is_diagnosing = st.session_state.get("is_diagnosing", False)
 
-    # 파일이 바뀌면 위치 관련 캐시 초기화
-    current_file_name = uploaded_file.name if uploaded_file else "no_file"
+    # 파일 변경 체크 (filename + size 조합으로 카메라 연속 촬영 구분)
+    current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
     
-    if st.session_state.get("last_file_name") != current_file_name:
-        st.session_state["last_file_name"] = current_file_name
+    if st.session_state.get("last_file_name") != current_file_id:
+        st.session_state["last_file_name"] = current_file_id
         for key in ["cached_lat", "cached_lon", "cached_loc_name", "override_location", "geo_step_state", "geo_try_count", "geo_failed_msg"]:
             st.session_state.pop(key, None)
         lat, lon, selected_loc_name = None, None, ""
