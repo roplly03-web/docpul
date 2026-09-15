@@ -71,9 +71,9 @@ st.markdown("""
         transition: all 0.15s ease-in-out !important;
     }
 
-    /* 미선택 탭 텍스트 스타일 (17px, 일반 두께, 회색) */
+    /* 미선택 탭 텍스트 스타일 (일반 두께, 회색) */
     div[data-testid="stRadio"] [role="radiogroup"] label p {
-        font-size: 17px !important;
+        font-size: 15px !important;
         font-weight: 500 !important;
         color: #75777e !important;
         margin: 0 !important;
@@ -85,7 +85,7 @@ st.markdown("""
         color: #5ac451 !important;
     }
 
-    /* 선택된 탭 - 폰트 확대 (20px), 볼드, 브랜드 컬러, 하단바 */
+    /* 선택된 탭 - 폰트 확대, 볼드, 브랜드 컬러, 하단바 */
     div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
     div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
         border-bottom: 3.5px solid #5ac451 !important;
@@ -96,7 +96,7 @@ st.markdown("""
 
     div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"] p,
     div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) p {
-        font-size: 18px !important;
+        font-size: 16px !important;
         font-weight: 600 !important;
         color: #5ac451 !important;
     }
