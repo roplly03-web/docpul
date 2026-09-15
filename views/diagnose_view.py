@@ -91,7 +91,7 @@ def show_diagnose_page():
 
         # JPEG 원본을 가능한 한 작은 해상도로 디코딩
         if image.format == "JPEG":
-            image.draft("RGB", (1200, 1200))
+            image.draft("RGB", (1000, 1000))
 
         image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
@@ -503,25 +503,69 @@ def show_diagnose_page():
         else:
             st.subheader("닥풀 AI 진단 요약")
             
+            # History 목록의 뱃지 및 다크모드 대응 카드 CSS 선언
+            st.markdown("""
+                <style>
+                .summary-card {
+                    border: 1px solid rgba(49, 51, 63, 0.2);
+                    border-radius: 10px;
+                    padding: 14px 8px;
+                    text-align: center;
+                    min-height: 145px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                    box-sizing: border-box;
+                }
+                
+                @media (prefers-color-scheme: dark) {
+                    .summary-card {
+                        border-color: rgba(250, 250, 250, 0.2);
+                    }
+                }
+
+                .plant-card-badge {
+                    display: inline-block;
+                    padding: 3px 10px;
+                    border-radius: 12px;
+                    font-size: 0.85rem;
+                    font-weight: 500;
+                }
+                
+                /* History와 완전히 동일한 뱃지 색상 체계 */
+                .badge-healthy { background-color: #e6f4ea; color: #137333; }
+                .badge-normal  { background-color: #e8f0fe; color: #1a73e8; }
+                .badge-warning { background-color: #fef7e0; color: #b06000; }
+                .badge-danger  { background-color: #fce8e6; color: #c5221f; }
+                
+                /* 가능성 뱃지 스타일 */
+                .badge-confidence { background-color: #e6f4ea; color: #137333; }
+                </style>
+            """, unsafe_allow_html=True)
+            
             with st.container(border=True):
                 score = rep['health_score']
+                
+                # History 기준과 동일하게 점수 구간 설정
                 if score >= 80:
-                    status_text, badge_bg, badge_fg = "건강한 편이에요", "#E6F4EA", "#137333"
+                    status_text, badge_class = "건강한 편이에요", "badge-healthy"
                 elif score >= 60:
-                    status_text, badge_bg, badge_fg = "관찰이 필요해요", "#F1F3F4", "#3C4043"
+                    status_text, badge_class = "관찰이 필요해요", "badge-normal"
                 elif score >= 40:
-                    status_text, badge_bg, badge_fg = "관리가 필요해요", "#FCE8E6", "#C5221F"
+                    status_text, badge_class = "관리가 필요해요", "badge-warning"
                 else:
-                    status_text, badge_bg, badge_fg = "도움이 필요해요", "#FCE8E6", "#C5221F"
+                    status_text, badge_class = "도움이 필요해요", "badge-danger"
 
                 m1, m2 = st.columns(2)
 
                 with m1:
                     st.markdown(f"""
-                        <div style="border: 1px solid; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <div class="summary-card">
                             <div style="font-size: 0.85rem; color: #75777e; font-weight: 400; margin-bottom: 6px;">식물 건강 점수</div>
-                            <div style="font-size: 2.0rem; font-weight: 700; ; margin-bottom: 8px; line-height: 1.2;">{score}점</div>
-                            <div style="display: inline-block; background-color: {badge_bg}; color: {badge_fg}; font-size: 0.85rem; font-weight: 500; padding: 3px 10px; border-radius: 12px;">
+                            <div style="font-size: 2.0rem; font-weight: 600; margin-bottom: 8px; line-height: 1.2;">{score}점</div>
+                            <div class="plant-card-badge {badge_class}">
                                 {status_text}
                             </div>
                         </div>
@@ -529,22 +573,38 @@ def show_diagnose_page():
 
                 with m2:
                     st.markdown(f"""
-                        <div style="border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 8px; text-align: center; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; box-sizing: border-box; margin-bottom: 16px;">
+                        <div class="summary-card">
                             <div style="font-size: 0.85rem; color: #75777e; font-weight: 400; margin-bottom: 6px;">추정 식물</div>
                             <div style="width: 100%; display: flex; align-items: center; justify-content: center; min-height: 2.0rem; margin: 4px 0; line-height: 1.2;">
-                                <span style="font-size: clamp(0.85rem, 3.5cqw + 0.2rem, 1.3rem); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block;">
+                                <span style="font-size: clamp(0.85rem, 3.5cqw + 0.2rem, 2.0rem); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; display: inline-block;">
                                     {rep['plant_name']}
                                 </span>
                             </div>
-                            <div style="display: inline-block; background-color: #E6F4EA; color: #137333; font-size: 0.85rem; font-weight: 500; padding: 3px 10px; border-radius: 12px;">
+                            <div class="plant-card-badge badge-confidence">
                                 이 식물일 가능성 {rep['confidence']}%
                             </div>
                         </div>
-                    """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)                
                 
-                st.markdown('<hr style="margin: 16px 0 20px 0; border: none; border-top: 1px solid #e6e6e6;">', unsafe_allow_html=True)
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**학명** `{rep['scientific_name'] or '학명을 알 수 없어요'}`")
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**식물이 있는 곳** `{format_location_display(rep['location_name'], rep['lat'], rep['lon'])}`")
+                st.markdown(
+                    f"""
+                    <div style="margin-left: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
+                        <div>
+                            <b>학명</b>
+                            <span style="margin-left: 8px; font-size: 0.9rem; color: #75777e;">
+                                {rep['scientific_name'] or '학명을 알 수 없어요'}
+                            </span>
+                        </div>
+                        <div>
+                            <b>식물이 있는 곳</b>
+                            <span style="margin-left: 8px; ; font-size: 0.9rem; color: #75777e;"">
+                                {format_location_display(rep['location_name'], rep['lat'], rep['lon'])}
+                            </span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
                 
                 summary_text = rep.get("one_line_summary")
                 if summary_text:
