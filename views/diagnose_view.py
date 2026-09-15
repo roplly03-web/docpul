@@ -121,28 +121,43 @@ def show_diagnose_page():
             st.session_state.pop(k, None)
         return
 
-    # 2. 이미지 메모리 최적화 로드 (카메라 촬영 대응)
+    # 2. 이미지 표시 및 위치 변수 선언
+    img_bytes = None
+    image = None
+
     try:
-        # BytesIO로 메모리에서 바로 읽어와 빠르게 1/2~1/4 수준으로 압축 리사이징
+        # 파일 바이트 읽기
+        uploaded_file.seek(0)
         raw_bytes = uploaded_file.read()
-        image = ImageOps.exif_transpose(Image.open(io.BytesIO(raw_bytes)))
+
+        if not raw_bytes:
+            st.error("사진 데이터를 읽지 못했어요. 다시 업로드해 주세요.")
+            return
+
+        # PIL 이미지 로드 및 회전 보정
+        image = Image.open(io.BytesIO(raw_bytes))
+        try:
+            image = ImageOps.exif_transpose(image)
+        except Exception:
+            pass
 
         if image.mode != "RGB":
             image = image.convert("RGB")
 
-        # 메모리 폭발 방지: 최대 해상도를 1024px 수준으로 제한
+        # 메모리 방어용 리사이징
         image.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
 
-        # 화면 표시
+        # 화면에 사진 표시
         st.image(image, use_container_width=True)
 
-        # AI 전달용 바이너리 미리 세팅 (이후 재변환 제거)
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG', quality=80)  # 용량 대폭 축소 (보통 300KB 이하로 감소)
-        img_bytes = img_byte_arr.getvalue()
+        # AI 전달 및 DB 저장용 바이트 바인딩 (글로벌 범위 적용)
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=80, optimize=True)
+        img_bytes = buffer.getvalue()
 
-    except Exception:
-        st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
+    except Exception as e:
+        # 정확한 에러 확인용 디버그 출력
+        st.error(f"사진을 처리하지 못했어요. (오류 내용: {str(e)})")
         return
 
     # 위치 관련 변수 초기 선언
@@ -153,7 +168,7 @@ def show_diagnose_page():
     has_report = bool(st.session_state.get("latest_report"))
     is_diagnosing = st.session_state.get("is_diagnosing", False)
 
-    # 파일 변경 체크 (filename + size 조합으로 카메라 연속 촬영 구분)
+    # 파일 변경 체크 (파일명 + 파일 크기)
     current_file_id = f"{uploaded_file.name}_{uploaded_file.size}"
     
     if st.session_state.get("last_file_name") != current_file_id:
