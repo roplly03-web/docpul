@@ -68,7 +68,7 @@ def show_map_page():
         score = r.get("health_score", 0)
         status_info = get_local_health_status(score)
         
-        # 🌟 지오코딩 API를 다시 부르지 않고, DB에 저장된 location_name만 가공 (속도 10배 이상 향상)
+        # 지오코딩 API를 다시 부르지 않고, DB에 저장된 location_name만 가공 (속도 10배 이상 향상)
         raw_loc = r.get("location_name") or ""
         
         # 대한민국 접두사 제거 및 간단 표기
@@ -233,8 +233,8 @@ def show_map_page():
                         '<div class="info-box">' +
                             '<div class="map-title">' + item.title + '</div>' +
                             '<span class="plant-card-badge ' + item.badge_class + '">' + item.score + '점 (' + item.status_text + ')</span>' +
-                            '<div class="map-location">📍 ' + item.location + '</div>' +
-                            '<div class="map-date">📅 ' + item.created_date + '</div>' +
+                            '<div class="map-location">' + item.location + '</div>' +
+                            '<div class="map-date">' + item.created_date + '</div>' +
                             imgTag +
                         '</div>';
 
