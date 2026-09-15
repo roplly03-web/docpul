@@ -15,14 +15,14 @@ def show_detail_dialog(rec):
     st.markdown("""
         <style>
         .modal-info-box {
-            padding: 12px 14px 20px 14px !important; /* 상 우 하 좌 패딩 완벽 통일 */
+            padding: 4px 8px 14px 8px !important; /* 상 우 하 좌 패딩 완벽 통일 */
             margin: 0 !important;
             display: flex;
             flex-direction: column;
             gap: 10px; /* 각 항목 간의 간격 */
         }
         .modal-info-row {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #75777e;
             display: flex;
             align-items: center;
@@ -34,11 +34,12 @@ def show_detail_dialog(rec):
             font-weight: 400;
         }
         .modal-location-full, .modal-date-full {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: #75777e;
             font-weight: 400;
             word-break: break-all;
         }
+
         </style>
     """, unsafe_allow_html=True)
 
@@ -52,7 +53,7 @@ def show_detail_dialog(rec):
     st.markdown(f"""
         <div class="modal-title-wrap" style="margin-bottom: 12px;">
             <div class="modal-plant-name" style="font-size:1.2rem; font-weight: 600;">
-                {plant_name} <span class="modal-confidence" style="font-size:0.85rem; color: #75777e; font-weight: 400;">&nbsp;&nbsp;이 식물일 가능성 {confidence}%</span>
+                {plant_name}
             </div>
             <div class="modal-scientific-name" style="font-size:0.95rem; color: #75777e;">{scientific_name}</div>
         </div>
@@ -82,6 +83,10 @@ def show_detail_dialog(rec):
                 <div class="modal-info-row">
                     <span style="margin-right: 8px;">🌱</span>
                     <span class="plant-card-badge {badge_class}" style="margin: 0;">{health_score}점 ({status_text})</span>
+                </div>
+                <div class="modal-info-row">
+                    <span style="margin-right: 8px;">✨</span>
+                    <span class="modal-location-full">이 식물일 가능성</span>&nbsp;&nbsp;<span style="font-size: 0.95rem;"><b>{confidence} %</b></span>
                 </div>
                 <div class="modal-info-row">
                     <span style="margin-right: 8px;">📍</span>
