@@ -63,10 +63,11 @@ def show_intro_page():
         .badge-warning { background-color: #fef7e0; color: #b06000; }
         .badge-danger { background-color: #fce8e6; color: #c5221f; }
 
-        /* 목록 카드 전용: 한 줄을 넘지 않고 말줄임표(...) 처리하는 CSS */
+        /* 목록 카드 전용: 한 줄을 넘지 않고 말줄임표(...) 처리하는 CSS (history_view 기준 통일) */
         .history-location {
             font-size: 0.85rem;
-            color: #555;
+            color: #75777e;
+            font-weight: 400;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -74,8 +75,9 @@ def show_intro_page():
             width: 100%;
         }
         .history-date {
-            font-size: 0.8rem;
-            color: #888;
+            font-size: 0.85rem;
+            color: #75777e;
+            font-weight: 400;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -86,7 +88,7 @@ def show_intro_page():
     """, unsafe_allow_html=True)
 
     st.markdown("""
-        <h4 style="text-align: center; line-height: 1.5; margin-bottom: 10px; font-weight: 400;">
+        <h4 style="text-align: center; line-height: 1.5; margin-top: -18px; margin-bottom: 10px; font-weight: 400;">
         <b>식물 이름</b>부터 <b>아픈 이유</b>까지...<br><b>사진 한 장</b>으로 살펴보세요
         </h4>
         <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-bottom: 22px; font-weight: 400;">
@@ -135,7 +137,7 @@ def show_intro_page():
     st.divider()
 
     st.markdown("""
-        <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>식물 이름</b>만 알려주는게 아니에요
+        <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>이름</b>만 알려주는 게 아니에요
         </h4>
         <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물 사진을 보여주면 이름부터 궁금하죠.<br>하지만 이상한 부분이 보이면 <b>궁금한 건 따로</b> 있어요.
         </p>
