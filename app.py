@@ -39,7 +39,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 커스텀 탭 CSS
+# 커스텀 탭 CSS (st.radio 기반: 속도 최상 + 라디오 아이콘 완전 제거 + st.tab 디자인)
 st.markdown("""
     <style>
     .block-container {
@@ -50,70 +50,77 @@ st.markdown("""
         height: 2rem !important;
     }
 
-    div[data-testid="stRadio"] > div {
+    /* 1. Radio 그룹 가로 정렬 */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex !important;
         flex-direction: row !important;
-        gap: 20px !important;
-        align-items: center !important;
-        margin-top: 20px !important;
+        gap: 24px !important;
+        align-items: flex-end !important;
+        margin-top: 12px !important;
         margin-bottom: 0px !important;
     }
 
-    div[data-testid="stRadio"] label {
-        font-size: 18px !important;
-        font-weight: 500 !important;
-        color: #6c757d !important;
-        cursor: pointer !important;
-        padding: 4px 2px 10px 2px !important;
+    /* 3. 기본 탭 (미선택 상태) - st.tab 느낌 연출 */
+    div[data-testid="stRadio"] [role="radiogroup"] label {
         background-color: transparent !important;
         border: none !important;
+        border-bottom: 3.5px solid transparent !important;
+        padding: 4px 4px 8px 4px !important;
+        cursor: pointer !important;
+        margin: 0 !important;
+        transition: all 0.15s ease-in-out !important;
     }
 
-    div[data-testid="stRadio"] label:hover {
+    /* 미선택 탭 텍스트 스타일 (17px, 일반 두께, 회색) */
+    div[data-testid="stRadio"] [role="radiogroup"] label p {
+        font-size: 17px !important;
+        font-weight: 500 !important;
+        color: #75777e !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+    }
+
+    /* 호버 시 */
+    div[data-testid="stRadio"] [role="radiogroup"] label:hover p {
         color: #5ac451 !important;
     }
 
-    div[data-testid="stRadio"] label[data-checked="true"] {
-        font-size: 18px !important;
-        font-weight: 700 !important;
-        color: #5ac451 !important;
-        border-bottom: 3px solid #5ac451 !important;
-        padding-bottom: 10px !important;
-        margin-bottom: -2px !important;
+    /* 선택된 탭 - 폰트 확대 (20px), 볼드, 브랜드 컬러, 하단바 */
+    div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"],
+    div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) {
+        border-bottom: 3.5px solid #5ac451 !important;
+        margin-bottom: 0px !important;
         position: relative !important;
-        top: 2px !important;
         z-index: 2 !important;
     }
 
-    div[data-testid="stRadio"] input[type="radio"] {
-        display: none !important;
-    }
-    div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {
-        display: none !important;
+    div[data-testid="stRadio"] [role="radiogroup"] label[data-checked="true"] p,
+    div[data-testid="stRadio"] [role="radiogroup"] label:has(input:checked) p {
+        font-size: 18px !important;
+        font-weight: 600 !important;
+        color: #5ac451 !important;
     }
 
+    /* 하단 구분선 (st.tab 스타일 회색 라인) */
     .full-width-divider {
         width: 100%;
         border-bottom: 1px solid #d6d6d9;
-        margin-top: 2px;
+        margin-top: -24px;
         margin-bottom: 1rem;
         position: relative;
         z-index: 1;
     }
 
+    /* 다크모드 대응 */
     @media (prefers-color-scheme: dark) {
-        div[data-testid="stRadio"] label {
-            color: #adb5bd !important;
+        div[data-testid="stRadio"] [role="radiogroup"] label p {
+            color: #a0a5ab !important;
         }
-        div[data-testid="stRadio"] label:hover {
+        div[data-testid="stRadio"] [role="radiogroup"] label:hover p {
             color: #5ac451 !important;
         }
         .full-width-divider {
             border-bottom: 1px solid #343a40 !important;
-            margin-top: 2px !important;
-            margin-bottom: 1rem !important;
-            position: relative;
-            z-index: 1;
         }
     }
     </style>
