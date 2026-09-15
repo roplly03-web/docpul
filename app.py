@@ -120,7 +120,7 @@ st.markdown("""
             color: #5ac451 !important;
         }
         .full-width-divider {
-            border-bottom: 1px solid #343a40 !important;
+            border-bottom: 1px solid #d6d6d9 !important;
         }
     }
     </style>
