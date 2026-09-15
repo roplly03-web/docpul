@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script src="https://unpkg.com/streamlit-component-lib@latest/dist/index.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: sans-serif;
+        }
+
+        button {
+            width: 100%;
+            height: 44px;
+            border: none;
+            border-radius: 10px;
+            background: #FFAB02;
+            color: white;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        input {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<button id="cameraButton">📷 카메라로 찍기</button>
+
+<input
+    id="cameraInput"
+    type="file"
+    accept="image/*"
+    capture="environment"
+/>
+
+<script>
+    const button = document.getElementById("cameraButton");
+    const input = document.getElementById("cameraInput");
+
+    button.addEventListener("click", () => {
+        input.click();
+    });
+
+    input.addEventListener("change", async () => {
+        const file = input.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        // 브라우저에서 먼저 이미지 크기 축소
+        const bitmap = await createImageBitmap(file);
+
+        const maxSize = 1200;
+
+        let width = bitmap.width;
+        let height = bitmap.height;
+
+        if (width > maxSize || height > maxSize) {
+            if (width > height) {
+                height = Math.round(height * maxSize / width);
+                width = maxSize;
+            } else {
+                width = Math.round(width * maxSize / height);
+                height = maxSize;
+            }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(bitmap, 0, 0, width, height);
+
+        canvas.toBlob(async (blob) => {
+
+            const reader = new FileReader();
+
+            reader.onloadend = () => {
+                const base64 = reader.result.split(",")[1];
+
+                Streamlit.setComponentValue({
+                    name: "camera.jpg",
+                    type: "image/jpeg",
+                    data: base64
+                });
+            };
+
+            reader.readAsDataURL(blob);
+
+        }, "image/jpeg", 0.8);
+    });
+
+    Streamlit.setFrameHeight(60);
+</script>
+
+</body>
+</html>
