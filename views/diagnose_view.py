@@ -158,7 +158,7 @@ def show_diagnose_page():
         if is_valid(lat):
             disp_loc = format_location_display(selected_loc_name, lat, lon)
             st.success(f"📍 식물이 있는 곳: **{disp_loc}**")
-            if st.button("위치 직접 검색하기", type="secondary", key="btn_reset_loc"):
+            if st.button("📌 위치 직접 검색하기", type="secondary", key="btn_reset_loc"):
                 st.session_state.pop("cached_lat", None)
                 st.session_state.pop("cached_lon", None)
                 st.session_state.pop("cached_loc_name", None)
@@ -219,18 +219,18 @@ def show_diagnose_page():
 
             if st.session_state.get("geo_step_state") == "requesting":
                 try_cnt = st.session_state.get("geo_try_count", 1)
-                st.info(f"💡 브라우저 상단의 **위치 권한 허용**을 눌러주세요.")
+                st.info(f"브라우저 상단의 **위치 권한 허용**을 눌러주세요.")
 
             col1, col2 = st.columns(2)
 
             with col1:
-                if st.button("📍 내 현재 위치 가져오기", key="btn_fetch_geo_real"):
+                if st.button("📍 현재 위치 가져오기", key="btn_fetch_geo_real"):
                     st.session_state["geo_step_state"] = "requesting"
                     st.session_state["geo_try_count"] = 1
                     st.rerun()
 
             with col2:
-                if st.button("위치 직접 검색하기", key="btn_skip_to_manual"):
+                if st.button("📌 위치 직접 검색하기", key="btn_skip_to_manual"):
                     st.session_state["override_location"] = True
                     st.session_state["geo_step_state"] = "ready"
                     st.session_state["geo_try_count"] = 0
