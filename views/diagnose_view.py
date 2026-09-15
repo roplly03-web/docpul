@@ -91,7 +91,7 @@ def show_diagnose_page():
 
         # JPEG 원본을 가능한 한 작은 해상도로 디코딩
         if image.format == "JPEG":
-            image.draft("RGB", (1600, 1600))
+            image.draft("RGB", (1200, 1200))
 
         image.thumbnail((800, 800), Image.Resampling.LANCZOS)
 
