@@ -91,7 +91,7 @@ def show_intro_page():
         <h4 style="text-align: center; line-height: 1.5; margin-top: -18px; margin-bottom: 10px; font-weight: 400;">
         <b>식물 이름</b>부터 <b>아픈 이유</b>까지...<br><b>사진 한 장</b>으로 살펴보세요
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-bottom: 22px; font-weight: 400;">
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-bottom: 22px; font-weight: 400;">
         닥풀이 식물의 종류와 현재 상태를 살펴보고,<br><b>이상 증상 원인과 관리 방법</b>까지 함께 알려드려요.
         </p>   
     """, unsafe_allow_html=True)
@@ -139,14 +139,14 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>이름</b>만 알려주는 게 아니에요
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물 사진을 보여주면 이름부터 궁금하죠.<br>하지만 이상한 부분이 보이면 <b>궁금한 건 따로</b> 있어요.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물 사진을 보여주면 이름부터 궁금하죠.<br>하지만 이상한 부분이 보이면 <b>궁금한 건 따로</b> 있어요.
         </p>
         <br>
         <h5 style="text-align: center; line-height: 1.5; margin-top: 0px; font-weight: 400;">
         <b>왜</b> 이래요?<br><b>무슨 문제</b>인가요?<br><b>어떻게</b> 해야하나요?
         </h5>
         <br>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물의 특징, 현재 상태, 이상 증상, 원인, 관리 방법<br><b>사진에서 확인되는 정보</b>를 바탕으로 하나씩 살펴봐요.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; font-weight: 400;">식물의 특징, 현재 상태, 이상 증상, 원인, 관리 방법<br><b>사진에서 확인되는 정보</b>를 바탕으로 하나씩 살펴봐요.
         </p>                
     """, unsafe_allow_html=True)
     
@@ -155,7 +155,7 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">닥풀은 <b>이렇게</b> 살펴봐요
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">최근 <b>닥풀이 살펴본 식물</b>들을 만나보세요.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">최근 <b>닥풀이 살펴본 식물</b>들을 만나보세요.
         </p> 
     """, unsafe_allow_html=True)
     
@@ -212,7 +212,7 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">한 번의 진단에서 <b>끝나지 않아요</b>
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 16px; font-weight: 400;">닥풀은 식물을 <b>한 번 살펴보고 끝내지 않아요.</b>
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 16px; font-weight: 400;">닥풀은 식물을 <b>한 번 살펴보고 끝내지 않아요.</b>
         </p> 
     """, unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
@@ -268,7 +268,7 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;">닥풀이 만들고 있는 <b>식물 지도</b>
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 0px; font-weight: 400;">지금은 한 그루의 식물을 살펴보지만,<br>진단이 쌓이면 <b>우리 동네의 식물 정보</b>가 됩니다.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 0px; font-weight: 400;">지금은 한 그루의 식물을 살펴보지만,<br>진단이 쌓이면 <b>우리 동네의 식물 정보</b>가 됩니다.
         </p> 
         <br>
         <h5 style="text-align: center; line-height: 1.6; margin-top: 0px; font-weight: 400;">
@@ -277,7 +277,7 @@ def show_intro_page():
         <b>계절</b>에 따라 식물은 어떻게 달라질까?
         </h5>
         <br>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀은 이런 질문에 답할 수 있는<br><b>지역 기반 식물 정보</b>를 만들어가고 있어요.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀은 이런 질문에 답할 수 있는<br><b>지역 기반 식물 정보</b>를 만들어가고 있어요.
         </p>                
     """, unsafe_allow_html=True)
 
@@ -286,7 +286,7 @@ def show_intro_page():
     st.markdown("""
         <h4 style="text-align: center; line-height: 1.5; margin-bottom: 8px; font-weight: 400;"><b>내 식물이 궁금할 때</b>,<br> 사진을 올려보세요
         </h4>
-        <p style="font-size: 1.0rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀이 식물 이름부터 현재 상태<br><b>이상 증상이 있다면 원인과 관리 방법까지</b><br>살펴볼게요.
+        <p style="font-size: 0.95rem; text-align: center; line-height: 1.4; color: #75777e; margin-top: 0px; margin-bottom: 22px; font-weight: 400;">닥풀이 식물 이름부터 현재 상태<br><b>이상 증상이 있다면 원인과 관리 방법까지</b><br>살펴볼게요.
         </p>
     """, unsafe_allow_html=True)
     
