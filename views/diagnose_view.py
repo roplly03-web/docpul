@@ -56,7 +56,7 @@ def show_diagnose_page():
 
     uploader_key = f"main_tree_uploader_{st.session_state['uploader_key_idx']}"
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    #st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("""
         <h4 style="line-height: 1.3; margin-bottom: 0px; font-weight: 500;">내 식물, 닥풀이 한 번 살펴볼게요
         </h4>
@@ -90,7 +90,7 @@ def show_diagnose_page():
         image = Image.open(uploaded_file)
         st.image(image, use_container_width=True)
     except Exception as e:
-        st.error("사진을 확인할 수 없어요. 다시 업로드해 주세요.")
+        st.error("사진을 확인할 수 없어요. **다시 업로드해 주세요.**")
         return
 
     # 위치 관련 변수 초기 선언
@@ -156,7 +156,8 @@ def show_diagnose_page():
 
         # CASE 1: 이미 위치가 지정된 경우
         if is_valid(lat):
-            st.success(f"📍 식물이 있는 곳: **{selected_loc_name}**")
+            disp_loc = format_location_display(selected_loc_name, lat, lon)
+            st.success(f"📍 식물이 있는 곳: **{disp_loc}**")
             if st.button("위치 직접 검색하기", type="secondary", key="btn_reset_loc"):
                 st.session_state.pop("cached_lat", None)
                 st.session_state.pop("cached_lon", None)
@@ -172,7 +173,7 @@ def show_diagnose_page():
                 st.warning(st.session_state.pop("geo_failed_msg"))
 
             keyword_input = st.text_input(
-                "**식물이 있는 장소를 검색**해 주세요.",
+                "식물이 있는 곳을 찾지 못했어요. **직접 장소를 검색**해 주세요.",
                 placeholder="예: 서울숲, 푸른수목원, 우리집 주소",
                 key="manual_keyword_input"
             )
@@ -182,7 +183,7 @@ def show_diagnose_page():
                     results = search_google_places(keyword_input.strip())
                     if results:
                         st.markdown("""
-                            <p style="font-size: 0.95rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400; padding-top: 16px;">검색 결과에서 <b>식물이 있는 장소</b>를 선택해 주세요.
+                            <p style="font-size: 0.95rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400; padding-top: 16px;">검색 결과에서 <b>식물이 있는 곳</b>를 선택해 주세요.
                             </p>
                         """, unsafe_allow_html=True)
                         
@@ -218,7 +219,7 @@ def show_diagnose_page():
 
             if st.session_state.get("geo_step_state") == "requesting":
                 try_cnt = st.session_state.get("geo_try_count", 1)
-                st.info(f"💡 브라우저 상단의 **위치 권한 허용**을 눌러주세요. (확인 중... {try_cnt}/3)")
+                st.info(f"💡 브라우저 상단의 **위치 권한 허용**을 눌러주세요.")
 
             col1, col2 = st.columns(2)
 
@@ -229,7 +230,7 @@ def show_diagnose_page():
                     st.rerun()
 
             with col2:
-                if st.button("직접 장소 검색하기", key="btn_skip_to_manual"):
+                if st.button("위치 직접 검색하기", key="btn_skip_to_manual"):
                     st.session_state["override_location"] = True
                     st.session_state["geo_step_state"] = "ready"
                     st.session_state["geo_try_count"] = 0
@@ -281,7 +282,7 @@ def show_diagnose_page():
                 st.rerun()
 
         # 2. GPS 수집 실패, 브라우저 차단/거부 에러, 또는 3회 시도 초과 시
-        elif (loc and isinstance(loc, dict) and "error" in loc) or try_cnt >= 3:
+        elif (loc and isinstance(loc, dict) and "error" in loc) or try_cnt >= 5:
             # IP 기반 대략 위치 Fallback 저장
             try:
                 ip_lat, ip_lon, ip_addr = get_location_by_ip()
@@ -374,7 +375,7 @@ def show_diagnose_page():
         st.markdown("""
             <h4 style="line-height: 1.5; margin-bottom: 0px; font-weight: 500;">식물을 <b>꼼꼼하게</b> 살펴보고 있어요...
             </h4>
-            <p style="font-size: 0.9rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400;">사진을 자세히 살펴보고 있어요.<br><b>잠시만 기다려주세요.</b>
+            <p style="font-size: 0.9rem; line-height: 1.5; color: #75777e; margin-top: 0px; font-weight: 400;">사진에서 <b>식물의 이름과 상태</b>를 하나씩 확인하고 있어요.<br><b>잠시만 기다려주세요.</b>
             </p>
         """, unsafe_allow_html=True)
   
@@ -417,7 +418,7 @@ def show_diagnose_page():
         status_text.caption("분석을 마쳤어요!")
         time.sleep(0.3)
 
-        res = res_box.get("data", {"status": "ERROR", "message": "응답을 받아오지 못했습니다."})
+        res = res_box.get("data", {"status": "ERROR", "message": "결과를 준비하지 못했어요."})
         st.session_state["is_diagnosing"] = False
 
         if res.get("status") != "SUCCESS":
@@ -468,7 +469,7 @@ def show_diagnose_page():
                         urgent=urgent_text
                     )
                 except Exception as e:
-                    st.error(f"진단 결과를 기록하지 못했어요.")
+                    st.error(f"진단 결과를 저장하지 못했어요.")
 
             st.session_state["latest_report"] = {
                 "health_score": health_score,
