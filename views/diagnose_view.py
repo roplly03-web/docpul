@@ -4,10 +4,11 @@ import re
 import threading
 import time
 from datetime import datetime
-from PIL import Image
+
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+from PIL import Image, ImageOps
 
 from utils import (
     apply_global_styles,
@@ -121,7 +122,7 @@ def show_diagnose_page():
 
     # 2. 이미지 표시 및 위치 변수 선언
     try:
-        image = Image.open(uploaded_file)
+        image = ImageOps.exif_transpose(Image.open(uploaded_file))
 
         if image.format == "JPEG":
             image.draft("RGB", (1200, 1200))
